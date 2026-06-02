@@ -59,6 +59,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       final res = await _api.getMe();
       final user = UserModel.fromJson(res.data['user']);
+      if (user.role != 'boss') {
+        await _api.clearToken();
+        state = const AuthState();
+        return;
+      }
       state = AuthState(user: user);
     } catch (_) {
       await _api.clearToken();
@@ -73,6 +78,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final token = res.data['token'] as String;
       await _api.saveToken(token);
       final user = UserModel.fromJson(res.data['user']);
+      if (user.role != 'boss') {
+        await _api.clearToken();
+        state = const AuthState(error: 'Access denied: Boss only.');
+        return false;
+      }
       state = AuthState(user: user);
       return true;
     } on DioException catch (e) {
