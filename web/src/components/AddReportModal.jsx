@@ -14,7 +14,7 @@ function today() {
 export default function AddReportModal({ onClose, onSuccess }) {
   const [clientName, setClientName] = useState('');
   const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
+  const [captions, setCaptions] = useState([]);
   const [shortDesc, setShortDesc] = useState('');
   const [date, setDate] = useState(today());
   const [images, setImages] = useState([]);
@@ -31,6 +31,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
     }
 
     setImages((prev) => [...prev, ...toAdd]);
+    setCaptions((prev) => [...prev, ...toAdd.map(() => '')]);
     toAdd.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => setPreviews((prev) => [...prev, ev.target.result]);
@@ -43,6 +44,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
   function removeImage(idx) {
     setImages((prev) => prev.filter((_, i) => i !== idx));
     setPreviews((prev) => prev.filter((_, i) => i !== idx));
+    setCaptions((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function handleSubmit(e) {
@@ -54,14 +56,25 @@ export default function AddReportModal({ onClose, onSuccess }) {
       return toast.error('Amount must be greater than 0');
     }
 
+    // Validate captions
+    for (let i = 0; i < images.length; i++) {
+      const cap = captions[i];
+      if (!cap || !cap.trim()) {
+        return toast.error(`Please provide a caption for image #${i + 1}`);
+      }
+      if (cap.length > 200) {
+        return toast.error(`Caption for image #${i + 1} must be 200 characters or less`);
+      }
+    }
+
     setLoading(true);
     const formData = new FormData();
     formData.append('client_name', clientName.trim());
     formData.append('amount', amount);
-    formData.append('note', note.trim());
     formData.append('short_desc', shortDesc.trim());
     formData.append('report_date', date);
     images.forEach((img) => formData.append('images', img));
+    captions.forEach((cap) => formData.append('captions', cap.trim()));
 
     try {
       await createReport(formData);
@@ -115,7 +128,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
                   id="report-amount"
                   className="form-input"
                   type="number"
-                  placeholder="0.00"
+                  placeholder="Total Amt"
                   min="0.01"
                   step="0.01"
                   value={amount}
@@ -141,22 +154,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Note */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="report-note">Note</label>
-              <input
-                id="report-note"
-                className="form-input"
-                type="text"
-                placeholder="Short note (optional)"
-                value={note}
-                maxLength={MAX_NOTE}
-                onChange={(e) => setNote(e.target.value)}
-              />
-              <div className={`char-count ${note.length >= MAX_NOTE ? 'at-limit' : note.length >= 16 ? 'near-limit' : ''}`}>
-                {note.length}/{MAX_NOTE}
-              </div>
-            </div>
+
 
             {/* Short Description */}
             <div className="form-group">
@@ -200,18 +198,38 @@ export default function AddReportModal({ onClose, onSuccess }) {
                 </div>
               )}
               {previews.length > 0 && (
-                <div className="image-preview-strip">
+                <div className="image-previews-container">
                   {previews.map((src, idx) => (
-                    <div key={idx} className="image-preview-thumb">
-                      <img src={src} alt={`Preview ${idx + 1}`} />
-                      <button
-                        type="button"
-                        className="remove-thumb"
-                        onClick={() => removeImage(idx)}
-                        aria-label="Remove image"
-                      >
-                        ×
-                      </button>
+                    <div key={idx} className="image-preview-item">
+                      <div className="image-preview-thumb">
+                        <img src={src} alt={`Preview ${idx + 1}`} />
+                        <button
+                          type="button"
+                          className="remove-thumb"
+                          onClick={() => removeImage(idx)}
+                          aria-label="Remove image"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="image-preview-caption-wrapper">
+                        <input
+                          type="text"
+                          className="form-input caption-input"
+                          placeholder="Image caption (max 200 chars) *"
+                          value={captions[idx] || ''}
+                          maxLength={200}
+                          onChange={(e) => {
+                            const newCaptions = [...captions];
+                            newCaptions[idx] = e.target.value;
+                            setCaptions(newCaptions);
+                          }}
+                          required
+                        />
+                        <div className={`char-count ${(captions[idx] || '').length >= 200 ? 'at-limit' : (captions[idx] || '').length >= 160 ? 'near-limit' : ''}`}>
+                          {(captions[idx] || '').length}/200
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -72,12 +72,14 @@ class ReportDetail {
 class ReportImage {
   final String id;
   final String cloudinaryUrl;
+  final String? caption;
 
-  const ReportImage({required this.id, required this.cloudinaryUrl});
+  const ReportImage({required this.id, required this.cloudinaryUrl, this.caption});
 
   factory ReportImage.fromJson(Map<String, dynamic> json) => ReportImage(
-    id: json['id'],
-    cloudinaryUrl: json['cloudinary_url'],
+    id: json['id'] ?? '',
+    cloudinaryUrl: json['cloudinary_url'] ?? '',
+    caption: json['caption'],
   );
 }
 

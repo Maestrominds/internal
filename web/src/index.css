@@ -549,6 +549,81 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
 }
 
+/* Image Preview container for captions in AddReportModal */
+.image-previews-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.image-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface-2);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-3);
+  width: 100%;
+}
+
+.image-preview-item .image-preview-thumb {
+  flex-shrink: 0;
+}
+
+.image-preview-caption-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.image-preview-caption-wrapper .caption-input {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.image-preview-caption-wrapper .char-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 2px;
+}
+
+/* Image Card Container and caption in attachments grid */
+.image-card-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.image-caption {
+  font-size: 0.8rem;
+  font-weight: 550;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Lightbox caption overlay */
+.lightbox-caption {
+  position: fixed;
+  bottom: 56px;
+  color: #fff;
+  font-size: 0.95rem;
+  background: rgba(10, 22, 40, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  max-width: 80%;
+  text-align: center;
+  word-break: break-word;
+  z-index: 2010;
+}
+
 /* ── Detail Page ─────────────────────────────────────────────── */
 .detail-header {
   display: flex;

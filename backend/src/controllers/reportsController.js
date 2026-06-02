@@ -81,7 +81,7 @@ async function getReportById(req, res) {
 
     // Fetch images
     const images = await pool.query(
-      'SELECT id, cloudinary_url, cloudinary_id FROM report_images WHERE report_id = $1 ORDER BY created_at ASC',
+      'SELECT id, cloudinary_url, cloudinary_id, caption FROM report_images WHERE report_id = $1 ORDER BY created_at ASC',
       [id]
     );
 
@@ -123,6 +123,25 @@ async function createReport(req, res) {
       return res.status(400).json({ message: 'Invalid amount.' });
     }
 
+    // Normalize and validate captions
+    let captions = req.body.captions || [];
+    if (files.length > 0) {
+      if (!Array.isArray(captions)) {
+        captions = [captions];
+      }
+      if (captions.length !== files.length) {
+        return res.status(400).json({ message: 'Each image must have a caption.' });
+      }
+      for (const cap of captions) {
+        if (!cap || !cap.trim()) {
+          return res.status(400).json({ message: 'Caption cannot be empty.' });
+        }
+        if (cap.length > 200) {
+          return res.status(400).json({ message: 'Caption must be 200 characters or less.' });
+        }
+      }
+    }
+
     // Insert report
     const reportResult = await pool.query(
       `INSERT INTO reports (manager_id, client_name, amount, note, short_desc, report_date)
@@ -142,7 +161,9 @@ async function createReport(req, res) {
 
     // Upload images
     const uploadedImages = [];
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const caption = captions[i] ? captions[i].trim() : '';
       try {
         const { secure_url, public_id } = await compressAndUpload(
           file.buffer,
@@ -150,9 +171,9 @@ async function createReport(req, res) {
         );
 
         const imgResult = await pool.query(
-          `INSERT INTO report_images (report_id, cloudinary_url, cloudinary_id)
-           VALUES ($1, $2, $3) RETURNING id, cloudinary_url, cloudinary_id`,
-          [report.id, secure_url, public_id]
+          `INSERT INTO report_images (report_id, cloudinary_url, cloudinary_id, caption)
+           VALUES ($1, $2, $3, $4) RETURNING id, cloudinary_url, cloudinary_id, caption`,
+          [report.id, secure_url, public_id, caption]
         );
 
         uploadedImages.push(imgResult.rows[0]);

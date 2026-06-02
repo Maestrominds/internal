@@ -96,6 +96,12 @@ function Lightbox({ images, startIndex, onClose }) {
         </div>
       )}
 
+      {images[current].caption && (
+        <div className="lightbox-caption">
+          {images[current].caption}
+        </div>
+      )}
+
       <p style={{ position: 'fixed', bottom: '20px', color: 'rgba(255,255,255,.6)', fontSize: '0.85rem' }}>
         {current + 1} / {images.length}
       </p>
@@ -131,33 +137,40 @@ export default function ImageGallery({ images }) {
     <>
       <div className="image-grid">
         {images.map((img, idx) => (
-          <div key={img.id} className="image-card">
-            {!loaded[idx] && <SkeletonImg />}
-            <img
-              src={img.cloudinary_url}
-              alt={`Report image ${idx + 1}`}
-              style={{ display: loaded[idx] ? 'block' : 'none' }}
-              onLoad={() => setLoaded((prev) => ({ ...prev, [idx]: true }))}
-              onError={() => setLoaded((prev) => ({ ...prev, [idx]: true }))}
-            />
-            <div className="image-card-overlay">
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => setLightboxIdx(idx)}
-                style={{ color: '#fff', background: 'rgba(255,255,255,.15)', borderRadius: '50%', width: '38px', height: '38px', padding: 0, justifyContent: 'center' }}
-                title="View full size"
-              >
-                <ZoomIcon />
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => downloadImage(img.cloudinary_url, idx)}
-                style={{ color: '#fff', background: 'rgba(255,255,255,.15)', borderRadius: '50%', width: '38px', height: '38px', padding: 0, justifyContent: 'center' }}
-                title="Download"
-              >
-                <DownloadIcon />
-              </button>
+          <div key={img.id} className="image-card-container">
+            <div className="image-card">
+              {!loaded[idx] && <SkeletonImg />}
+              <img
+                src={img.cloudinary_url}
+                alt={img.caption || `Report image ${idx + 1}`}
+                style={{ display: loaded[idx] ? 'block' : 'none' }}
+                onLoad={() => setLoaded((prev) => ({ ...prev, [idx]: true }))}
+                onError={() => setLoaded((prev) => ({ ...prev, [idx]: true }))}
+              />
+              <div className="image-card-overlay">
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setLightboxIdx(idx)}
+                  style={{ color: '#fff', background: 'rgba(255,255,255,.15)', borderRadius: '50%', width: '38px', height: '38px', padding: 0, justifyContent: 'center' }}
+                  title="View full size"
+                >
+                  <ZoomIcon />
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => downloadImage(img.cloudinary_url, idx)}
+                  style={{ color: '#fff', background: 'rgba(255,255,255,.15)', borderRadius: '50%', width: '38px', height: '38px', padding: 0, justifyContent: 'center' }}
+                  title="Download"
+                >
+                  <DownloadIcon />
+                </button>
+              </div>
             </div>
+            {img.caption && (
+              <div className="image-caption">
+                {img.caption}
+              </div>
+            )}
           </div>
         ))}
       </div>

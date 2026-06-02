@@ -270,6 +270,8 @@ class _ImageGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final crossAxisCount = MediaQuery.of(context).size.width > 600 ? 3 : 2;
+    final hasCaptions = images.any((img) => img.caption != null && img.caption!.trim().isNotEmpty);
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -277,27 +279,52 @@ class _ImageGrid extends StatelessWidget {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 4 / 3,
+        childAspectRatio: hasCaptions ? 4 / 4.2 : 4 / 3,
       ),
       itemCount: images.length,
       itemBuilder: (context, idx) {
+        final img = images[idx];
         return GestureDetector(
           onTap: () => _openLightbox(context, idx),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: CachedNetworkImage(
-              imageUrl: images[idx].cloudinaryUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Shimmer.fromColors(
-                baseColor: AppTheme.surface3,
-                highlightColor: AppTheme.surface,
-                child: Container(color: AppTheme.surface),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: img.cloudinaryUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Shimmer.fromColors(
+                      baseColor: AppTheme.surface3,
+                      highlightColor: AppTheme.surface,
+                      child: Container(color: AppTheme.surface),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: AppTheme.surface2,
+                      child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
+                    ),
+                  ),
+                ),
               ),
-              errorWidget: (context, url, error) => Container(
-                color: AppTheme.surface2,
-                child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
-              ),
-            ),
+              if (img.caption != null && img.caption!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    img.caption!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         );
       },
@@ -400,6 +427,22 @@ class _LightboxState extends State<_Lightbox> {
           child: CircularProgressIndicator(color: AppTheme.accent500),
         ),
       ),
+      bottomNavigationBar: widget.images[_current].caption != null &&
+              widget.images[_current].caption!.trim().isNotEmpty
+          ? Container(
+              color: Colors.black,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              child: Text(
+                widget.images[_current].caption!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white87,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            )
+          : null,
     );
   }
 }

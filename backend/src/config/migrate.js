@@ -39,10 +39,16 @@ async function runMigration() {
         report_id UUID REFERENCES reports(id) ON DELETE CASCADE,
         cloudinary_url TEXT NOT NULL,
         cloudinary_id TEXT NOT NULL,
+        caption VARCHAR(200),
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
     console.log('✅ report_images table ready');
+
+    await client.query(`
+      ALTER TABLE report_images ADD COLUMN IF NOT EXISTS caption VARCHAR(200);
+    `);
+    console.log('✅ report_images caption column added/verified');
 
     console.log('✅ Migration complete!');
   } catch (err) {
