@@ -86,7 +86,7 @@ export default function ReportDetailsPage() {
                   <p>{report.client_name}</p>
                 </div>
                 <div className="detail-field">
-                  <label>Amount</label>
+                  <label>Total Amount</label>
                   <p style={{ color: 'var(--accent-500)', fontWeight: 700 }}>{formatINR(report.amount)}</p>
                 </div>
                 <div className="detail-field">

@@ -230,7 +230,7 @@ class _DetailGrid extends StatelessWidget {
         ),
         SizedBox(
           width: (MediaQuery.of(context).size.width - 56) / 2,
-          child: _field('AMOUNT', _formatINR(report.amount), valueColor: AppTheme.accent500),
+          child: _field('TOTAL AMOUNT', _formatINR(report.amount), valueColor: AppTheme.accent500),
         ),
         SizedBox(
           width: (MediaQuery.of(context).size.width - 56) / 2,
