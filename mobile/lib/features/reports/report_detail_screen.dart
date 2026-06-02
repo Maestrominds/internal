@@ -279,7 +279,7 @@ class _ImageGrid extends StatelessWidget {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: hasCaptions ? 4 / 4.2 : 4 / 3,
+        childAspectRatio: hasCaptions ? 4 / 4.5 : 4 / 3,
       ),
       itemCount: images.length,
       itemBuilder: (context, idx) {
@@ -317,9 +317,9 @@ class _ImageGrid extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
                     ),
                   ),
                 ),

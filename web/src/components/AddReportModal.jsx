@@ -213,12 +213,13 @@ export default function AddReportModal({ onClose, onSuccess }) {
                         </button>
                       </div>
                       <div className="image-preview-caption-wrapper">
-                        <input
-                          type="text"
+                        <textarea
                           className="form-input caption-input"
                           placeholder="Image caption (max 200 chars) *"
                           value={captions[idx] || ''}
                           maxLength={200}
+                          rows={2}
+                          style={{ resize: 'none', minHeight: '60px' }}
                           onChange={(e) => {
                             const newCaptions = [...captions];
                             newCaptions[idx] = e.target.value;
