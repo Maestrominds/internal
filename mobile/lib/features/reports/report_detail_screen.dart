@@ -436,7 +436,7 @@ class _LightboxState extends State<_Lightbox> {
                 widget.images[_current].caption!,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Colors.white87,
+                  color: Colors.white70,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
