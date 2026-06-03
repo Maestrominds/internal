@@ -1,6 +1,15 @@
 const pool = require('../config/db');
 const { compressAndUpload, deleteFromCloudinary } = require('../utils/imageProcessor');
 
+function toTitleCase(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 // GET /api/reports
 // Boss: sees all reports, with optional client_name/client_phone filters or search term
 // Manager: sees own reports + boss-created reports
@@ -29,7 +38,7 @@ async function getReports(req, res) {
       conditions.push(`r.client_phone = $${params.length + 1}`);
       params.push(client_phone);
     } else if (client_name) {
-      conditions.push(`r.client_name = $${params.length + 1} AND (r.client_phone IS NULL OR r.client_phone = '')`);
+      conditions.push(`LOWER(r.client_name) = LOWER($${params.length + 1}) AND (r.client_phone IS NULL OR r.client_phone = '')`);
       params.push(client_name);
     }
 
@@ -47,7 +56,11 @@ async function getReports(req, res) {
     query += ' ORDER BY r.report_date DESC, r.created_at DESC';
 
     const result = await pool.query(query, params);
-    return res.status(200).json({ reports: result.rows });
+    const reports = result.rows.map(r => ({
+      ...r,
+      client_name: toTitleCase(r.client_name),
+    }));
+    return res.status(200).json({ reports });
   } catch (err) {
     console.error('getReports error:', err);
     return res.status(500).json({ message: 'Server error.' });
@@ -86,7 +99,7 @@ async function getClients(req, res) {
 
     for (const row of rows) {
       const phone = row.client_phone ? row.client_phone.trim() : null;
-      const name = row.client_name ? row.client_name.trim() : '';
+      const name = row.client_name ? toTitleCase(row.client_name.trim()) : '';
 
       if (phone) {
         if (!clientsMap[phone] || (name && !clientsMap[phone].client_name)) {
@@ -166,6 +179,7 @@ async function getReportById(req, res) {
     return res.status(200).json({
       report: {
         ...report,
+        client_name: toTitleCase(report.client_name),
         images: images.rows,
         editors,
       },
@@ -222,7 +236,7 @@ async function createReport(req, res) {
     }
 
     // Defaulting fields
-    const finalClientName = client_name?.trim() || 'Unnamed Client';
+    const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
     const finalClientPhone = client_phone?.trim() || null;
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
@@ -403,7 +417,7 @@ async function updateReport(req, res) {
     }
 
     // Defaults for text fields
-    const finalClientName = client_name?.trim() || 'Unnamed Client';
+    const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
     const finalClientPhone = client_phone?.trim() || null;
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
