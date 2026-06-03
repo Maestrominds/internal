@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createReport } from '../api/reports';
+import { updateReport } from '../api/reports';
 import toast from 'react-hot-toast';
 
 const MAX_CLIENT = 50;
@@ -11,42 +11,60 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-export default function AddReportModal({ onClose, onSuccess }) {
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [amount, setAmount] = useState('');
-  const [note, setNote] = useState('');
-  const [captions, setCaptions] = useState([]);
-  const [shortDesc, setShortDesc] = useState('');
-  const [date, setDate] = useState(today());
-  const [images, setImages] = useState([]);
-  const [previews, setPreviews] = useState([]);
+export default function EditReportModal({ report, onClose, onSuccess }) {
+  const [clientName, setClientName] = useState(report.client_name || '');
+  const [clientPhone, setClientPhone] = useState(report.client_phone || '');
+  const [amount, setAmount] = useState(report.amount || '');
+  const [note, setNote] = useState(report.note || '');
+  const [shortDesc, setShortDesc] = useState(report.short_desc || '');
+  const [date, setDate] = useState(
+    report.report_date ? report.report_date.split('T')[0] : today()
+  );
+
+  // Existing images state
+  const [existingImages] = useState(report.images || []);
+  const [deletedImageIds, setDeletedImageIds] = useState([]);
+
+  // New images state
+  const [newImages, setNewImages] = useState([]);
+  const [newPreviews, setNewPreviews] = useState([]);
+  const [newCaptions, setNewCaptions] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  function handleImages(e) {
+  const activeExistingCount = existingImages.filter(
+    (img) => !deletedImageIds.includes(img.id)
+  ).length;
+  const totalActiveCount = activeExistingCount + newImages.length;
+
+  function handleNewImages(e) {
     const files = Array.from(e.target.files || []);
-    const remaining = MAX_IMAGES - images.length;
+    const remaining = MAX_IMAGES - totalActiveCount;
     const toAdd = files.slice(0, remaining);
 
     if (files.length > remaining) {
-      toast.error(`Max ${MAX_IMAGES} images allowed`);
+      toast.error(`Max ${MAX_IMAGES} images allowed in total`);
     }
 
-    setImages((prev) => [...prev, ...toAdd]);
-    setCaptions((prev) => [...prev, ...toAdd.map(() => '')]);
+    setNewImages((prev) => [...prev, ...toAdd]);
+    setNewCaptions((prev) => [...prev, ...toAdd.map(() => '')]);
     toAdd.forEach((file) => {
       const reader = new FileReader();
-      reader.onload = (ev) => setPreviews((prev) => [...prev, ev.target.result]);
+      reader.onload = (ev) => setNewPreviews((prev) => [...prev, ev.target.result]);
       reader.readAsDataURL(file);
     });
-    // Reset file input so same file can be re-added if removed
     e.target.value = '';
   }
 
-  function removeImage(idx) {
-    setImages((prev) => prev.filter((_, i) => i !== idx));
-    setPreviews((prev) => prev.filter((_, i) => i !== idx));
-    setCaptions((prev) => prev.filter((_, i) => i !== idx));
+  function removeNewImage(idx) {
+    setNewImages((prev) => prev.filter((_, i) => i !== idx));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== idx));
+    setNewCaptions((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function toggleDeleteExisting(id) {
+    setDeletedImageIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
 
   async function handleSubmit(e) {
@@ -55,14 +73,14 @@ export default function AddReportModal({ onClose, onSuccess }) {
       return toast.error('Amount must be greater than or equal to 0');
     }
 
-    // Validate captions
-    for (let i = 0; i < images.length; i++) {
-      const cap = captions[i];
+    // Validate captions for new images
+    for (let i = 0; i < newImages.length; i++) {
+      const cap = newCaptions[i];
       if (!cap || !cap.trim()) {
-        return toast.error(`Please provide a caption for image #${i + 1}`);
+        return toast.error(`Please provide a caption for new image #${i + 1}`);
       }
       if (cap.length > 200) {
-        return toast.error(`Caption for image #${i + 1} must be 200 characters or less`);
+        return toast.error(`Caption for new image #${i + 1} must be 200 characters or less`);
       }
     }
 
@@ -74,15 +92,16 @@ export default function AddReportModal({ onClose, onSuccess }) {
     formData.append('note', note.trim());
     formData.append('short_desc', shortDesc.trim());
     formData.append('report_date', date);
-    images.forEach((img) => formData.append('images', img));
-    captions.forEach((cap) => formData.append('captions', cap.trim()));
+    formData.append('deleted_image_ids', JSON.stringify(deletedImageIds));
+    newImages.forEach((img) => formData.append('images', img));
+    newCaptions.forEach((cap) => formData.append('captions', cap.trim()));
 
     try {
-      await createReport(formData);
-      toast.success('Report submitted successfully!');
+      await updateReport(report.id, formData);
+      toast.success('Report updated successfully!');
       onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit report');
+      toast.error(err.response?.data?.message || 'Failed to update report');
     } finally {
       setLoading(false);
     }
@@ -92,7 +111,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>Add Report</h3>
+          <h3>Edit Report</h3>
           <button className="btn-icon btn-ghost" onClick={onClose} aria-label="Close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -104,9 +123,9 @@ export default function AddReportModal({ onClose, onSuccess }) {
           <div className="modal-body">
             {/* Client Name */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-client">Client Name</label>
+              <label className="form-label" htmlFor="edit-client">Client Name</label>
               <input
-                id="report-client"
+                id="edit-client"
                 className="form-input"
                 type="text"
                 placeholder="Enter client name (optional)"
@@ -121,9 +140,9 @@ export default function AddReportModal({ onClose, onSuccess }) {
 
             {/* Client Phone */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-phone">Client Phone Number</label>
+              <label className="form-label" htmlFor="edit-phone">Client Phone Number</label>
               <input
-                id="report-phone"
+                id="edit-phone"
                 className="form-input"
                 type="tel"
                 placeholder="Enter client phone number (optional)"
@@ -138,11 +157,11 @@ export default function AddReportModal({ onClose, onSuccess }) {
 
             {/* Amount */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-amount">Amount (INR)</label>
+              <label className="form-label" htmlFor="edit-amount">Amount (INR)</label>
               <div className="amount-input-wrapper">
                 <span className="amount-prefix">₹</span>
                 <input
-                  id="report-amount"
+                  id="edit-amount"
                   className="form-input"
                   type="number"
                   placeholder="Total Amt (optional)"
@@ -156,10 +175,10 @@ export default function AddReportModal({ onClose, onSuccess }) {
 
             {/* Date */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-date">Report Date</label>
+              <label className="form-label" htmlFor="edit-date">Report Date</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  id="report-date"
+                  id="edit-date"
                   className="form-input"
                   type="date"
                   value={date}
@@ -171,9 +190,9 @@ export default function AddReportModal({ onClose, onSuccess }) {
 
             {/* Note */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-note">Note</label>
+              <label className="form-label" htmlFor="edit-note">Note</label>
               <input
-                id="report-note"
+                id="edit-note"
                 className="form-input"
                 type="text"
                 placeholder="Note (optional, max 20 chars)"
@@ -188,9 +207,9 @@ export default function AddReportModal({ onClose, onSuccess }) {
 
             {/* Short Description */}
             <div className="form-group">
-              <label className="form-label" htmlFor="report-desc">Short Description</label>
+              <label className="form-label" htmlFor="edit-desc">Short Description</label>
               <textarea
-                id="report-desc"
+                id="edit-desc"
                 className="form-input"
                 placeholder="Brief description (optional)"
                 value={shortDesc}
@@ -204,39 +223,101 @@ export default function AddReportModal({ onClose, onSuccess }) {
               </div>
             </div>
 
-            {/* Image Upload */}
+            {/* Existing Images */}
+            {existingImages.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Existing Images (Select to delete)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
+                  {existingImages.map((img) => {
+                    const isDeleted = deletedImageIds.includes(img.id);
+                    return (
+                      <div
+                        key={img.id}
+                        onClick={() => toggleDeleteExisting(img.id)}
+                        style={{
+                          position: 'relative',
+                          cursor: 'pointer',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          border: isDeleted ? '3px solid var(--danger-color, #dc3545)' : '1px solid var(--border-color, #ccc)',
+                          opacity: isDeleted ? 0.4 : 1,
+                        }}
+                      >
+                        <img
+                          src={img.cloudinary_url}
+                          alt={img.caption}
+                          style={{ width: '100%', height: '80px', objectFit: 'cover' }}
+                        />
+                        {isDeleted && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0, left: 0, right: 0, bottom: 0,
+                              background: 'rgba(220, 53, 69, 0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            DELETING
+                          </div>
+                        )}
+                        <div
+                          style={{
+                            fontSize: '0.7rem',
+                            padding: '4px',
+                            background: 'rgba(0,0,0,0.6)',
+                            color: 'white',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {img.caption}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Upload New Images */}
             <div className="form-group">
               <label className="form-label">
-                Images (optional, up to {MAX_IMAGES})
+                Upload New Images (Max total {MAX_IMAGES})
               </label>
-              {images.length < MAX_IMAGES && (
+              {totalActiveCount < MAX_IMAGES && (
                 <div className="image-picker">
                   <input
-                    id="report-images"
+                    id="edit-new-images"
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleImages}
+                    onChange={handleNewImages}
                   />
                   <div className="image-picker-text">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 6px', opacity: 0.5 }}>
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
                     </svg>
-                    <p>Click to select images</p>
-                    <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>{images.length}/{MAX_IMAGES} selected</p>
+                    <p>Click to select new images</p>
+                    <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Total active: {totalActiveCount}/{MAX_IMAGES}</p>
                   </div>
                 </div>
               )}
-              {previews.length > 0 && (
+              {newPreviews.length > 0 && (
                 <div className="image-previews-container">
-                  {previews.map((src, idx) => (
+                  {newPreviews.map((src, idx) => (
                     <div key={idx} className="image-preview-item">
                       <div className="image-preview-thumb">
-                        <img src={src} alt={`Preview ${idx + 1}`} />
+                        <img src={src} alt={`New Preview ${idx + 1}`} />
                         <button
                           type="button"
                           className="remove-thumb"
-                          onClick={() => removeImage(idx)}
+                          onClick={() => removeNewImage(idx)}
                           aria-label="Remove image"
                         >
                           ×
@@ -245,20 +326,20 @@ export default function AddReportModal({ onClose, onSuccess }) {
                       <div className="image-preview-caption-wrapper">
                         <textarea
                           className="form-input caption-input"
-                          placeholder="Image caption (max 200 chars) *"
-                          value={captions[idx] || ''}
+                          placeholder="New image caption *"
+                          value={newCaptions[idx] || ''}
                           maxLength={200}
                           rows={2}
                           style={{ resize: 'none', minHeight: '60px' }}
                           onChange={(e) => {
-                            const newCaptions = [...captions];
-                            newCaptions[idx] = e.target.value;
-                            setCaptions(newCaptions);
+                            const newCaps = [...newCaptions];
+                            newCaps[idx] = e.target.value;
+                            setNewCaptions(newCaps);
                           }}
                           required
                         />
-                        <div className={`char-count ${(captions[idx] || '').length >= 200 ? 'at-limit' : (captions[idx] || '').length >= 160 ? 'near-limit' : ''}`}>
-                          {(captions[idx] || '').length}/200
+                        <div className={`char-count ${(newCaptions[idx] || '').length >= 200 ? 'at-limit' : (newCaptions[idx] || '').length >= 160 ? 'near-limit' : ''}`}>
+                          {(newCaptions[idx] || '').length}/200
                         </div>
                       </div>
                     </div>
@@ -273,12 +354,12 @@ export default function AddReportModal({ onClose, onSuccess }) {
               Cancel
             </button>
             <button
-              id="submit-report-btn"
+              id="submit-edit-report-btn"
               type="submit"
               className="btn btn-primary"
               disabled={loading}
             >
-              {loading ? 'Submitting...' : 'Submit Report'}
+              {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>

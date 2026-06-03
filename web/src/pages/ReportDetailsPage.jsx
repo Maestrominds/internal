@@ -4,6 +4,8 @@ import Layout from '../components/Layout';
 import { getReportById } from '../api/reports';
 import { formatINR, formatDate } from '../utils/format';
 import ImageGallery from '../components/ImageGallery';
+import EditReportModal from '../components/EditReportModal';
+import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 function SkeletonDetail() {
@@ -35,10 +37,13 @@ function SkeletonDetail() {
 export default function ReportDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
+  const fetchReport = () => {
+    setLoading(true);
     getReportById(id)
       .then((res) => setReport(res.data.report))
       .catch(() => {
@@ -46,19 +51,44 @@ export default function ReportDetailsPage() {
         navigate('/dashboard/reports');
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReport();
   }, [id, navigate]);
+
+  const canEdit =
+    report &&
+    (user.role === 'boss' || (user.role === 'manager' && report.manager_id === user.id));
+
+  const getEditorNames = () => {
+    if (!report || !report.editors || report.editors.length === 0) return '';
+    return report.editors
+      .map((ed) => {
+        if (ed.id === user.id) return 'you';
+        return ed.name;
+      })
+      .join(', ');
+  };
 
   return (
     <Layout>
       <div className="page-header">
-        <div className="flex gap-3" style={{ alignItems: 'center' }}>
-          <button className="back-btn" onClick={() => navigate('/dashboard/reports')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Back
-          </button>
-          <h2>Report Details</h2>
+        <div className="flex gap-3" style={{ alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <div className="flex gap-3" style={{ alignItems: 'center' }}>
+            <button className="back-btn" onClick={() => navigate('/dashboard/reports')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+              Back
+            </button>
+            <h2>Report Details</h2>
+          </div>
+          {canEdit && (
+            <button className="btn btn-primary" onClick={() => setIsEditing(true)}>
+              Edit Report
+            </button>
+          )}
         </div>
       </div>
 
@@ -85,6 +115,12 @@ export default function ReportDetailsPage() {
                   <label>Client Name</label>
                   <p>{report.client_name}</p>
                 </div>
+                {report.client_phone && (
+                  <div className="detail-field">
+                    <label>Client Phone</label>
+                    <p>{report.client_phone}</p>
+                  </div>
+                )}
                 <div className="detail-field">
                   <label>Total Amount</label>
                   <p style={{ color: 'var(--accent-500)', fontWeight: 700 }}>{formatINR(report.amount)}</p>
@@ -97,6 +133,12 @@ export default function ReportDetailsPage() {
                   <label>Submitted By</label>
                   <p>{report.manager_name}</p>
                 </div>
+                {report.editors && report.editors.length > 0 && (
+                  <div className="detail-field">
+                    <label>Edited By</label>
+                    <p>{getEditorNames()}</p>
+                  </div>
+                )}
                 {report.note && (
                   <div className="detail-field">
                     <label>Note</label>
@@ -130,6 +172,17 @@ export default function ReportDetailsPage() {
           </div>
         ) : null}
       </div>
+
+      {isEditing && report && (
+        <EditReportModal
+          report={report}
+          onClose={() => setIsEditing(false)}
+          onSuccess={() => {
+            setIsEditing(false);
+            fetchReport();
+          }}
+        />
+      )}
     </Layout>
   );
 }

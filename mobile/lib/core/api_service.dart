@@ -74,13 +74,27 @@ class ApiService {
   }
 
   // Reports
-  Future<Response> getReports({String? search}) {
+  Future<Response> getReports({String? search, String? clientName, String? clientPhone}) {
     return _dio.get('/reports', queryParameters: {
       if (search != null && search.isNotEmpty) 'search': search,
+      if (clientName != null && clientName.isNotEmpty) 'client_name': clientName,
+      if (clientPhone != null && clientPhone.isNotEmpty) 'client_phone': clientPhone,
     });
+  }
+
+  Future<Response> getClients() {
+    return _dio.get('/reports/clients');
   }
 
   Future<Response> getReportById(String id) {
     return _dio.get('/reports/$id');
+  }
+
+  Future<Response> createReport(FormData data) {
+    return _dio.post('/reports', data: data);
+  }
+
+  Future<Response> updateReport(String id, FormData data) {
+    return _dio.put('/reports/$id', data: data);
   }
 }

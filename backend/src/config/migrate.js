@@ -24,10 +24,13 @@ async function runMigration() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         manager_id UUID REFERENCES users(id) ON DELETE CASCADE,
         client_name VARCHAR(50) NOT NULL,
+        client_phone VARCHAR(15),
         amount NUMERIC(14, 2) NOT NULL,
         note VARCHAR(20),
         short_desc VARCHAR(200),
         report_date DATE NOT NULL,
+        last_edited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        edited_by_ids UUID[] DEFAULT '{}',
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -47,8 +50,11 @@ async function runMigration() {
 
     await client.query(`
       ALTER TABLE report_images ADD COLUMN IF NOT EXISTS caption VARCHAR(200);
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS client_phone VARCHAR(15);
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS last_edited_by UUID REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS edited_by_ids UUID[] DEFAULT '{}';
     `);
-    console.log('✅ report_images caption column added/verified');
+    console.log('✅ report columns verified');
 
     console.log('✅ Migration complete!');
   } catch (err) {

@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { authenticate, requireManager } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 const {
   getReports,
+  getClients,
   getReportById,
   createReport,
+  updateReport,
 } = require('../controllers/reportsController');
 
 // Multer — memory storage, max 5 files, 10MB each
@@ -21,19 +23,29 @@ const upload = multer({
   },
 });
 
-// GET /api/reports — Boss gets all, manager gets own
+// GET /api/reports — Boss gets all, manager gets own + boss reports
 router.get('/', authenticate, getReports);
+
+// GET /api/reports/clients — get unique client grouping list
+router.get('/clients', authenticate, getClients);
 
 // GET /api/reports/:id
 router.get('/:id', authenticate, getReportById);
 
-// POST /api/reports — Manager only
+// POST /api/reports — Boss & Manager
 router.post(
   '/',
   authenticate,
-  requireManager,
   upload.array('images', 5),
   createReport
+);
+
+// PUT /api/reports/:id — Boss & Manager
+router.put(
+  '/:id',
+  authenticate,
+  upload.array('images', 5),
+  updateReport
 );
 
 module.exports = router;

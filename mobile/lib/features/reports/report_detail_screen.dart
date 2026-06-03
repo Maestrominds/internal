@@ -11,7 +11,9 @@ import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../core/theme.dart';
+import '../auth/auth_provider.dart';
 import 'reports_provider.dart';
+import 'add_report_screen.dart';
 
 String _formatINR(double amount) {
   final formatter = NumberFormat.currency(
@@ -32,131 +34,180 @@ String _formatDate(String dateStr) {
   }
 }
 
-class ReportDetailScreen extends ConsumerWidget {
+class ReportDetailScreen extends ConsumerStatefulWidget {
   final String reportId;
   const ReportDetailScreen({super.key, required this.reportId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final detailAsync = ref.watch(reportDetailProvider(reportId));
+  ConsumerState<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppTheme.primary800,
-        title: const Text('Report Details'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: detailAsync.when(
-        loading: () => _SkeletonDetail(),
-        error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppTheme.danger),
-              const SizedBox(height: 12),
-              Text(err.toString(), style: const TextStyle(color: AppTheme.textSecondary)),
-            ],
+class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
+  bool _refreshed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final detailAsync = ref.watch(reportDetailProvider(widget.reportId));
+    final currentUser = ref.watch(authProvider).user;
+
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          // If we popped, return whether we made modifications
+          // To send result back, we should have used Navigator.pop(context, _refreshed)
+          // but PopScope handles system back button.
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: AppTheme.primary800,
+          title: const Text('Report Details'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context, _refreshed),
+          ),
+          actions: detailAsync.when(
+            data: (report) {
+              final canEdit = currentUser != null &&
+                  (currentUser.role == 'boss' || report.managerId == currentUser.id);
+              if (!canEdit) return null;
+              return [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.white),
+                  onPressed: () async {
+                    final edited = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (ctx) => AddReportScreen(editReport: report),
+                      ),
+                    );
+                    if (edited == true) {
+                      setState(() {
+                        _refreshed = true;
+                      });
+                      ref
+                          .read(reportDetailProvider(widget.reportId).notifier)
+                          .fetchDetail();
+                    }
+                  },
+                  tooltip: 'Edit Report',
+                ),
+              ];
+            },
+            loading: () => null,
+            error: (err, stack) => null,
           ),
         ),
-        data: (report) => SingleChildScrollView(
-          child: Column(
-            children: [
-              // Header gradient banner
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primary700, AppTheme.primary600],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        body: detailAsync.when(
+          loading: () => _SkeletonDetail(),
+          error: (err, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: AppTheme.danger),
+                const SizedBox(height: 12),
+                Text(err.toString(), style: const TextStyle(color: AppTheme.textSecondary)),
+              ],
+            ),
+          ),
+          data: (report) => SingleChildScrollView(
+            child: Column(
+              children: [
+                // Header gradient banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primary700, AppTheme.primary600],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              report.clientName,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${report.managerName} · ${_formatDate(report.reportDate)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Colors.white60,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        _formatINR(report.amount),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.accentGlow,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            report.clientName,
+
+                // Details body
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Fields grid
+                      _DetailGrid(report: report, currentUserId: currentUser?.id),
+
+                      // Description
+                      if (report.shortDesc != null && report.shortDesc!.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        _SectionTitle('Description'),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface2,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.surface3),
+                          ),
+                          child: Text(
+                            report.shortDesc!,
                             style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              color: AppTheme.textSecondary,
+                              height: 1.7,
+                              fontSize: 14,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${report.managerName} · ${_formatDate(report.reportDate)}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.white60,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      _formatINR(report.amount),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.accentGlow,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Details body
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Fields grid
-                    _DetailGrid(report: report),
-
-                    // Description
-                    if (report.shortDesc != null && report.shortDesc!.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      _SectionTitle('Description'),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface2,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.surface3),
                         ),
-                        child: Text(
-                          report.shortDesc!,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            height: 1.7,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
 
-                    // Images
-                    if (report.images.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      _SectionTitle('Attachments (${report.images.length})'),
-                      const SizedBox(height: 12),
-                      _ImageGrid(images: report.images),
+                      // Images
+                      if (report.images.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _SectionTitle('Attachments (${report.images.length})'),
+                        const SizedBox(height: 12),
+                        _ImageGrid(images: report.images),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -190,7 +241,8 @@ class _SectionTitle extends StatelessWidget {
 
 class _DetailGrid extends StatelessWidget {
   final ReportDetail report;
-  const _DetailGrid({required this.report});
+  final String? currentUserId;
+  const _DetailGrid({required this.report, this.currentUserId});
 
   Widget _field(String label, String value, {Color? valueColor}) {
     return Column(
@@ -220,6 +272,11 @@ class _DetailGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final editorNames = report.editors.map((e) {
+      if (e.id == currentUserId) return 'you';
+      return e.name;
+    }).join(', ');
+
     return Wrap(
       spacing: 16,
       runSpacing: 16,
@@ -228,6 +285,11 @@ class _DetailGrid extends StatelessWidget {
           width: (MediaQuery.of(context).size.width - 56) / 2,
           child: _field('CLIENT NAME', report.clientName),
         ),
+        if (report.clientPhone != null && report.clientPhone!.isNotEmpty)
+          SizedBox(
+            width: (MediaQuery.of(context).size.width - 56) / 2,
+            child: _field('CLIENT PHONE', report.clientPhone!),
+          ),
         SizedBox(
           width: (MediaQuery.of(context).size.width - 56) / 2,
           child: _field('TOTAL AMOUNT', _formatINR(report.amount), valueColor: AppTheme.accent500),
@@ -240,6 +302,11 @@ class _DetailGrid extends StatelessWidget {
           width: (MediaQuery.of(context).size.width - 56) / 2,
           child: _field('SUBMITTED BY', report.managerName),
         ),
+        if (editorNames.isNotEmpty)
+          SizedBox(
+            width: MediaQuery.of(context).size.width - 40,
+            child: _field('EDITED BY', editorNames),
+          ),
         if (report.note != null && report.note!.isNotEmpty)
           SizedBox(
             width: (MediaQuery.of(context).size.width - 56) / 2,
@@ -269,65 +336,65 @@ class _ImageGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = MediaQuery.of(context).size.width > 600 ? 3 : 2;
-    final hasCaptions = images.any((img) => img.caption != null && img.caption!.trim().isNotEmpty);
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width > 600 ? 3 : 2;
+    const spacing = 10.0;
+    const runSpacing = 16.0;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: hasCaptions ? 4 / 4.5 : 4 / 3,
-      ),
-      itemCount: images.length,
-      itemBuilder: (context, idx) {
+    final totalSpacing = (crossAxisCount - 1) * spacing;
+    final itemWidth = (width - 40.0 - totalSpacing) / crossAxisCount;
+
+    return Wrap(
+      spacing: spacing,
+      runSpacing: runSpacing,
+      children: List.generate(images.length, (idx) {
         final img = images[idx];
         return GestureDetector(
           onTap: () => _openLightbox(context, idx),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: CachedNetworkImage(
-                    imageUrl: img.cloudinaryUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Shimmer.fromColors(
-                      baseColor: AppTheme.surface3,
-                      highlightColor: AppTheme.surface,
-                      child: Container(color: AppTheme.surface),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppTheme.surface2,
-                      child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
-                    ),
-                  ),
-                ),
-              ),
-              if (img.caption != null && img.caption!.trim().isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    img.caption!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+          child: SizedBox(
+            width: itemWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: CachedNetworkImage(
+                      imageUrl: img.cloudinaryUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Shimmer.fromColors(
+                        baseColor: AppTheme.surface3,
+                        highlightColor: AppTheme.surface,
+                        child: Container(color: AppTheme.surface),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppTheme.surface2,
+                        child: const Icon(Icons.broken_image, color: AppTheme.textMuted),
+                      ),
                     ),
                   ),
                 ),
+                if (img.caption != null && img.caption!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      img.caption!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         );
-      },
+      }),
     );
   }
 }
