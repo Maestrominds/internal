@@ -59,7 +59,9 @@ export default function ReportDetailsPage() {
 
   const canEdit =
     report &&
-    (user.role === 'boss' || (user.role === 'manager' && report.manager_id === user.id));
+    (user.role === 'boss' ||
+      (user.role === 'manager' &&
+        (report.manager_id === user.id || report.manager_role === 'boss')));
 
   const getEditorNames = () => {
     if (!report || !report.editors || report.editors.length === 0) return '';

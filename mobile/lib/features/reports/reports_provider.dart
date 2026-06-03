@@ -74,6 +74,7 @@ class ReportDetail {
   final String reportDate;
   final String managerName;
   final String managerId;
+  final String managerRole;
   final String managerEmail;
   final String? note;
   final String? shortDesc;
@@ -89,6 +90,7 @@ class ReportDetail {
     required this.reportDate,
     required this.managerName,
     required this.managerId,
+    required this.managerRole,
     required this.managerEmail,
     this.note,
     this.shortDesc,
@@ -105,6 +107,7 @@ class ReportDetail {
     reportDate: json['report_date'] ?? '',
     managerName: json['manager_name'] ?? '',
     managerId: json['manager_id'] ?? '',
+    managerRole: json['manager_role'] ?? '',
     managerEmail: json['manager_email'] ?? '',
     note: json['note'],
     shortDesc: json['short_desc'],

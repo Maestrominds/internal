@@ -299,16 +299,24 @@ async function updateReport(req, res) {
     const { client_name, client_phone, amount, note, short_desc, report_date } = req.body;
     const files = req.files || [];
 
-    // Find original report
-    const reportResult = await pool.query('SELECT * FROM reports WHERE id = $1', [id]);
+    // Find original report and get submitter role
+    const reportResult = await pool.query(
+      `SELECT r.*, u.role AS manager_role
+       FROM reports r
+       JOIN users u ON r.manager_id = u.id
+       WHERE r.id = $1`,
+      [id]
+    );
     if (reportResult.rows.length === 0) {
       return res.status(404).json({ message: 'Report not found.' });
     }
     const report = reportResult.rows[0];
 
-    // Authorization: Boss can edit all. Manager edits only own.
-    if (req.user.role === 'manager' && report.manager_id !== req.user.id) {
-      return res.status(403).json({ message: 'Access denied. You can only edit your own reports.' });
+    // Authorization: Boss can edit all. Manager edits own OR boss-created reports.
+    const isOwner = report.manager_id === req.user.id;
+    const isBossCreated = report.manager_role === 'boss';
+    if (req.user.role === 'manager' && !isOwner && !isBossCreated) {
+      return res.status(403).json({ message: 'Access denied. You can only edit your own or boss-created reports.' });
     }
 
     // Text Validations

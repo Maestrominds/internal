@@ -70,7 +70,9 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           actions: detailAsync.when(
             data: (report) {
               final canEdit = currentUser != null &&
-                  (currentUser.role == 'boss' || report.managerId == currentUser.id);
+                  (currentUser.role == 'boss' ||
+                      report.managerId == currentUser.id ||
+                      report.managerRole == 'boss');
               if (!canEdit) return null;
               return [
                 IconButton(
