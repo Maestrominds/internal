@@ -27,7 +27,10 @@ async function getReports(req, res) {
     const conditions = [];
 
     // Client filtering
-    if (client_phone) {
+    if (client_phone && client_name) {
+      conditions.push(`(r.client_phone = $${params.length + 1} OR (LOWER(r.client_name) = LOWER($${params.length + 2}) AND (r.client_phone IS NULL OR r.client_phone = '')))`);
+      params.push(client_phone, client_name);
+    } else if (client_phone) {
       conditions.push(`r.client_phone = $${params.length + 1}`);
       params.push(client_phone);
     } else if (client_name) {

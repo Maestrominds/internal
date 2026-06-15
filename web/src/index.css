@@ -190,8 +190,8 @@ a { text-decoration: none; color: inherit; }
   border: 1.5px solid var(--accent-500);
 }
 .btn-outline:hover {
-  background: var(--accent-500);
-  color: #fff;
+  background: var(--accent-500) !important;
+  color: #fff !important;
   transform: translateY(-1px);
 }
 

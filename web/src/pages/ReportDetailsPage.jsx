@@ -79,7 +79,13 @@ export default function ReportDetailsPage() {
       <div className="page-header">
         <div className="flex gap-3" style={{ alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <div className="flex gap-3" style={{ alignItems: 'center' }}>
-            <button className="back-btn" onClick={() => navigate('/dashboard/reports', { state: { client: location.state?.client } })}>
+            <button
+              className="back-btn"
+              onClick={() => {
+                const backClient = location.state?.client || (report ? { client_name: report.client_name, client_phone: report.client_phone } : null);
+                navigate('/dashboard/reports', { state: { client: backClient } });
+              }}
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>

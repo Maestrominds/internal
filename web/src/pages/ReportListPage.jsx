@@ -58,11 +58,11 @@ export default function ReportListPage() {
   const fetchReportsForClient = useCallback(async (client) => {
     setLoading(true);
     try {
-      const params = {};
+      const params = {
+        client_name: client.client_name
+      };
       if (client.client_phone) {
         params.client_phone = client.client_phone;
-      } else {
-        params.client_name = client.client_name;
       }
       const res = await getReports(params);
       setReports(res.data.reports);
