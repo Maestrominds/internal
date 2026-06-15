@@ -21,6 +21,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
   const [date, setDate] = useState(today());
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [isGreen, setIsGreen] = useState(true);
   const [loading, setLoading] = useState(false);
 
   function handleImages(e) {
@@ -74,6 +75,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
     formData.append('note', note.trim());
     formData.append('short_desc', shortDesc.trim());
     formData.append('report_date', date);
+    formData.append('is_green', isGreen);
     images.forEach((img) => formData.append('images', img));
     captions.forEach((cap) => formData.append('captions', cap.trim()));
 
@@ -151,6 +153,51 @@ export default function AddReportModal({ onClose, onSuccess }) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
+              </div>
+            </div>
+
+            {/* Transaction Type */}
+            <div className="form-group">
+              <label className="form-label">Transaction Type</label>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    backgroundColor: isGreen ? '#10b981' : 'transparent',
+                    color: isGreen ? '#ffffff' : 'var(--text-primary)',
+                    borderColor: '#10b981',
+                    borderWidth: '2px',
+                    borderStyle: 'solid',
+                    fontWeight: 'bold',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setIsGreen(true)}
+                >
+                  🟢 Plus (Green)
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{
+                    flex: 1,
+                    backgroundColor: !isGreen ? '#ef4444' : 'transparent',
+                    color: !isGreen ? '#ffffff' : 'var(--text-primary)',
+                    borderColor: '#ef4444',
+                    borderWidth: '2px',
+                    borderStyle: 'solid',
+                    fontWeight: 'bold',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setIsGreen(false)}
+                >
+                  🔴 Minus (Red)
+                </button>
               </div>
             </div>
 

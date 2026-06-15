@@ -104,10 +104,12 @@ export default function ReportDetailsPage() {
               <div>
                 <div className="detail-title">{report.client_name}</div>
                 <div className="detail-subtitle">
-                  {report.manager_name} · {formatDate(report.report_date)}
+                  {formatDate(report.report_date)}
                 </div>
               </div>
-              <div className="detail-amount">{formatINR(report.amount)}</div>
+              <div className="detail-amount" style={{ color: report.is_green ? '#10b981' : '#ef4444' }}>
+                {report.is_green ? '+' : '-'} {formatINR(report.amount)}
+              </div>
             </div>
 
             {/* Card Body */}
@@ -124,8 +126,10 @@ export default function ReportDetailsPage() {
                   </div>
                 )}
                 <div className="detail-field">
-                  <label>Total Amount</label>
-                  <p style={{ color: 'var(--accent-500)', fontWeight: 700 }}>{formatINR(report.amount)}</p>
+                  <label>Transaction Amount</label>
+                  <p style={{ color: report.is_green ? '#10b981' : '#ef4444', fontWeight: 700 }}>
+                    {report.is_green ? '+' : '-'} {formatINR(report.amount)}
+                  </p>
                 </div>
                 <div className="detail-field">
                   <label>Report Date</label>

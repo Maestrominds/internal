@@ -22,7 +22,7 @@ function SkeletonImg() {
   return <div className="skeleton skeleton-img" />;
 }
 
-function Lightbox({ images, startIndex, onClose }) {
+export function Lightbox({ images, startIndex, onClose }) {
   const [current, setCurrent] = useState(startIndex);
 
   async function downloadImage(url, index) {

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getReports, getClients } from '../api/reports';
+import { getReports, getClients, getReportById } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { formatINR, formatDate } from '../utils/format';
 import AddReportModal from '../components/AddReportModal';
+import EditReportModal from '../components/EditReportModal';
+import { Lightbox } from '../components/ImageGallery';
 import toast from 'react-hot-toast';
 
 function SearchIcon() {
@@ -33,6 +35,10 @@ export default function ReportListPage() {
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedReportForAction, setSelectedReportForAction] = useState(null);
+  const [lightboxImages, setLightboxImages] = useState(null);
+  const [reportToEdit, setReportToEdit] = useState(null);
+  const [loadingReportDetails, setLoadingReportDetails] = useState(false);
 
   const isBoss = user?.role === 'boss';
 
@@ -73,6 +79,37 @@ export default function ReportListPage() {
       fetchReportsForClient(selectedClient);
     }
   }, [selectedClient, fetchClients, fetchReportsForClient]);
+
+  const handleViewImages = async (reportId, e) => {
+    e.stopPropagation();
+    setLoadingReportDetails(true);
+    try {
+      const res = await getReportById(reportId);
+      const images = res.data.report.images;
+      if (images && images.length > 0) {
+        setLightboxImages(images);
+      } else {
+        toast.error('No images found for this transaction');
+      }
+    } catch {
+      toast.error('Failed to load images');
+    } finally {
+      setLoadingReportDetails(false);
+    }
+  };
+
+  const handleEditClick = async (reportId) => {
+    setSelectedReportForAction(null);
+    setLoadingReportDetails(true);
+    try {
+      const res = await getReportById(reportId);
+      setReportToEdit(res.data.report);
+    } catch {
+      toast.error('Failed to load report details');
+    } finally {
+      setLoadingReportDetails(false);
+    }
+  };
 
   const handleClientClick = (client) => {
     setSearchInput('');
@@ -193,22 +230,105 @@ export default function ReportListPage() {
               <p>No reports found</p>
             </div>
           ) : (
-            <div className="reports-grid">
-              {filteredReports.map((r) => (
-                <Link key={r.id} to={`/dashboard/reports/${r.id}`} className="report-card">
-                  <div className="report-card-left">
-                    <div className="report-card-name">
-                      {r.client_name}
-                      {r.client_phone && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>({r.client_phone})</span>}
-                    </div>
-                    <div className="report-card-meta">
-                      {r.manager_name && <span>By {r.manager_name} · </span>}
-                      {formatDate(r.report_date)}
-                    </div>
+            <div>
+              {/* Premium Blue Header UI */}
+              <div style={{
+                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                color: '#ffffff',
+                padding: '24px',
+                borderRadius: '12px',
+                marginBottom: '24px',
+                boxShadow: '0 4px 12px rgba(37,99,235,0.15)'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700 }}>{selectedClient.client_name}</h3>
+                {selectedClient.client_phone && (
+                  <p style={{ margin: '4px 0 16px 0', opacity: 0.85, fontSize: '0.9rem' }}>📞 {selectedClient.client_phone}</p>
+                )}
+                <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Outstanding</span>
+                    <h4 style={{
+                      margin: '4px 0 0 0',
+                      fontSize: '1.6rem',
+                      fontWeight: 800,
+                      color: reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0) >= 0 ? '#10b981' : '#f87171'
+                    }}>
+                      {reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0) >= 0 ? '+' : ''}
+                      {formatINR(reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0))}
+                    </h4>
                   </div>
-                  <div className="report-card-amount">{formatINR(r.amount)}</div>
-                </Link>
-              ))}
+                  <div>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Started Date</span>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 600 }}>
+                      {reports.length > 0 ? formatDate(new Date(Math.min(...reports.map(r => new Date(r.report_date).getTime()))).toISOString().split('T')[0]) : '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ledger Table */}
+              <div style={{ overflowX: 'auto', backgroundColor: 'var(--card-bg, #ffffff)', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border-color, #e5e7eb)', backgroundColor: 'var(--table-header-bg, #f9fafb)' }}>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Created / Edited By</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Date</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Amount</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Images</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReports.map((r) => (
+                      <tr
+                        key={r.id}
+                        onClick={() => setSelectedReportForAction(r)}
+                        style={{
+                          borderBottom: '1px solid var(--border-color, #f3f4f6)',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg, #f9fafb)'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 500 }}>{r.manager_name}</td>
+                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{formatDate(r.report_date)}</td>
+                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {r.note ? <strong>[{r.note}] </strong> : ''}{r.short_desc || 'No description'}
+                        </td>
+                        <td style={{
+                          padding: '16px',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          color: r.is_green ? '#10b981' : '#ef4444'
+                        }}>
+                          {r.is_green ? '+' : '-'} {formatINR(r.amount)}
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          {r.image_count > 0 ? (
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={(e) => handleViewImages(r.id, e)}
+                              style={{
+                                padding: '6px 12px',
+                                borderColor: 'var(--accent-500)',
+                                color: 'var(--accent-500)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                background: 'transparent'
+                              }}
+                            >
+                              🖼️ View ({r.image_count})
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No images</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )
         )}
@@ -226,6 +346,81 @@ export default function ReportListPage() {
             }
           }}
         />
+      )}
+
+      {selectedReportForAction && (
+        <div className="modal-overlay" onClick={() => setSelectedReportForAction(null)}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Choose Action</h3>
+              <button className="btn-icon btn-ghost" onClick={() => setSelectedReportForAction(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <p style={{ margin: 0, fontSize: '0.95rem' }}>What would you like to do for this transaction?</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Link
+                  to={`/dashboard/reports/${selectedReportForAction.id}`}
+                  className="btn btn-primary"
+                  style={{ textAlign: 'center', display: 'block', textDecoration: 'none' }}
+                  onClick={() => setSelectedReportForAction(null)}
+                >
+                  🔍 View Full Details
+                </Link>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', borderColor: 'var(--accent-500)', color: 'var(--accent-500)', cursor: 'pointer' }}
+                  onClick={() => handleEditClick(selectedReportForAction.id)}
+                >
+                  ✏️ Edit Transaction
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportToEdit && (
+        <EditReportModal
+          report={reportToEdit}
+          onClose={() => setReportToEdit(null)}
+          onSuccess={() => {
+            setReportToEdit(null);
+            if (selectedClient) {
+              fetchReportsForClient(selectedClient);
+            } else {
+              fetchClients();
+            }
+          }}
+        />
+      )}
+
+      {lightboxImages && (
+        <Lightbox
+          images={lightboxImages}
+          startIndex={0}
+          onClose={() => setLightboxImages(null)}
+        />
+      )}
+
+      {loadingReportDetails && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          color: '#fff',
+          fontSize: '1.2rem',
+          fontWeight: 'bold'
+        }}>
+          Loading details...
+        </div>
       )}
     </Layout>
   );
