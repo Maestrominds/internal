@@ -31,6 +31,7 @@ async function runMigration() {
         report_date DATE NOT NULL,
         last_edited_by UUID REFERENCES users(id) ON DELETE SET NULL,
         edited_by_ids UUID[] DEFAULT '{}',
+        is_green BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -53,6 +54,7 @@ async function runMigration() {
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS client_phone VARCHAR(15);
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS last_edited_by UUID REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS edited_by_ids UUID[] DEFAULT '{}';
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_green BOOLEAN DEFAULT TRUE;
     `);
     console.log('✅ report columns verified');
 

@@ -144,7 +144,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${report.managerName} · ${_formatDate(report.reportDate)}',
+                              _formatDate(report.reportDate),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Colors.white60,
@@ -154,11 +154,11 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                         ),
                       ),
                       Text(
-                        _formatINR(report.amount),
-                        style: const TextStyle(
+                        '${report.isGreen ? "+" : "-"} ${_formatINR(report.amount)}',
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: AppTheme.accentGlow,
+                          color: report.isGreen ? Colors.greenAccent : Colors.redAccent,
                         ),
                       ),
                     ],
@@ -294,7 +294,11 @@ class _DetailGrid extends StatelessWidget {
           ),
         SizedBox(
           width: (MediaQuery.of(context).size.width - 56) / 2,
-          child: _field('TOTAL AMOUNT', _formatINR(report.amount), valueColor: AppTheme.accent500),
+          child: _field(
+            'TRANSACTION AMOUNT',
+            '${report.isGreen ? "+" : "-"} ${_formatINR(report.amount)}',
+            valueColor: report.isGreen ? Colors.green : Colors.red,
+          ),
         ),
         SizedBox(
           width: (MediaQuery.of(context).size.width - 56) / 2,
@@ -331,7 +335,7 @@ class _ImageGrid extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _Lightbox(images: images, initialIndex: index),
+        builder: (_) => LightboxGallery(images: images, initialIndex: index),
       ),
     );
   }
@@ -401,16 +405,16 @@ class _ImageGrid extends StatelessWidget {
   }
 }
 
-class _Lightbox extends StatefulWidget {
+class LightboxGallery extends StatefulWidget {
   final List<ReportImage> images;
   final int initialIndex;
-  const _Lightbox({required this.images, required this.initialIndex});
+  const LightboxGallery({super.key, required this.images, required this.initialIndex});
 
   @override
-  State<_Lightbox> createState() => _LightboxState();
+  State<LightboxGallery> createState() => _LightboxGalleryState();
 }
 
-class _LightboxState extends State<_Lightbox> {
+class _LightboxGalleryState extends State<LightboxGallery> {
   late PageController _pageController;
   late int _current;
   bool _downloading = false;

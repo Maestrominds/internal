@@ -37,6 +37,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
   final List<ReportImage> _existingImages = [];
   final List<String> _deletedImageIds = [];
 
+  bool _isGreen = true;
   bool _loading = false;
 
   @override
@@ -49,6 +50,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       _amountCtrl.text = r.amount == 0 ? '' : r.amount.toString();
       _noteCtrl.text = r.note ?? '';
       _shortDescCtrl.text = r.shortDesc ?? '';
+      _isGreen = r.isGreen;
       try {
         _selectedDate = DateTime.parse(r.reportDate);
       } catch (_) {
@@ -190,6 +192,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
         'amount': finalAmount ?? 0.0,
         'note': _noteCtrl.text.trim(),
         'short_desc': _shortDescCtrl.text.trim(),
+        'is_green': _isGreen,
         'report_date': _selectedDate != null
             ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
             : DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -332,6 +335,65 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
                       prefixIcon: Icon(Icons.currency_rupee),
                       border: OutlineInputBorder(),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Transaction Type
+                  const Text(
+                    'Transaction Type',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => setState(() => _isGreen = true),
+                          icon: Icon(Icons.circle, color: _isGreen ? Colors.white : Colors.green, size: 14),
+                          label: Text(
+                            'Plus (Green)',
+                            style: TextStyle(
+                              color: _isGreen ? Colors.white : Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: _isGreen ? Colors.green : Colors.transparent,
+                            side: const BorderSide(color: Colors.green, width: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => setState(() => _isGreen = false),
+                          icon: Icon(Icons.circle, color: !_isGreen ? Colors.white : Colors.red, size: 14),
+                          label: Text(
+                            'Minus (Red)',
+                            style: TextStyle(
+                              color: !_isGreen ? Colors.white : Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: !_isGreen ? Colors.red : Colors.transparent,
+                            side: const BorderSide(color: Colors.red, width: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 

@@ -11,27 +11,20 @@ function toTitleCase(str) {
 }
 
 // GET /api/reports
-// Boss: sees all reports, with optional client_name/client_phone filters or search term
-// Manager: sees own reports + boss-created reports
+// Boss & Manager: see all reports, with optional client_name/client_phone filters or search term
 async function getReports(req, res) {
   try {
     const { client_name, client_phone, search } = req.query;
-    const user = req.user;
 
     let query = `
-      SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date,
-             u.name AS manager_name, u.role AS manager_role, u.id AS manager_id
+      SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date, r.is_green, r.short_desc, r.note,
+             u.name AS manager_name, u.role AS manager_role, u.id AS manager_id,
+             (SELECT COUNT(*)::int FROM report_images WHERE report_id = r.id) AS image_count
       FROM reports r
       JOIN users u ON r.manager_id = u.id
     `;
     const params = [];
     const conditions = [];
-
-    // Authorization filter
-    if (user.role !== 'boss') {
-      conditions.push(`(r.manager_id = $${params.length + 1} OR u.role = 'boss')`);
-      params.push(user.id);
-    }
 
     // Client filtering
     if (client_phone) {
@@ -71,25 +64,14 @@ async function getReports(req, res) {
 // Return unique clients list grouped by phone number (if exists) or client name
 async function getClients(req, res) {
   try {
-    const user = req.user;
     let query, params;
 
-    if (user.role === 'boss') {
-      query = `
-        SELECT r.client_name, r.client_phone
-        FROM reports r
-        JOIN users u ON r.manager_id = u.id
-      `;
-      params = [];
-    } else {
-      query = `
-        SELECT r.client_name, r.client_phone
-        FROM reports r
-        JOIN users u ON r.manager_id = u.id
-        WHERE r.manager_id = $1 OR u.role = 'boss'
-      `;
-      params = [user.id];
-    }
+    query = `
+      SELECT r.client_name, r.client_phone
+      FROM reports r
+      JOIN users u ON r.manager_id = u.id
+    `;
+    params = [];
 
     const result = await pool.query(query, params);
     const rows = result.rows;
@@ -151,11 +133,6 @@ async function getReportById(req, res) {
     }
 
     const report = result.rows[0];
-
-    // Manager can access own reports OR boss-created reports
-    if (user.role === 'manager' && report.manager_id !== user.id && report.manager_role !== 'boss') {
-      return res.status(403).json({ message: 'Access denied.' });
-    }
 
     // Fetch images
     const images = await pool.query(
@@ -240,11 +217,12 @@ async function createReport(req, res) {
     const finalClientPhone = client_phone?.trim() || null;
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
+    const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
 
     // Insert report
     const reportResult = await pool.query(
-      `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         req.user.id,
@@ -254,6 +232,7 @@ async function createReport(req, res) {
         note?.trim() || null,
         short_desc?.trim() || null,
         finalReportDate,
+        finalIsGreen,
       ]
     );
 
@@ -311,13 +290,6 @@ async function updateReport(req, res) {
       return res.status(404).json({ message: 'Report not found.' });
     }
     const report = reportResult.rows[0];
-
-    // Authorization: Boss can edit all. Manager edits own OR boss-created reports.
-    const isOwner = report.manager_id === req.user.id;
-    const isBossCreated = report.manager_role === 'boss';
-    if (req.user.role === 'manager' && !isOwner && !isBossCreated) {
-      return res.status(403).json({ message: 'Access denied. You can only edit your own or boss-created reports.' });
-    }
 
     // Text Validations
     if (client_name && client_name.length > 50) {
@@ -429,6 +401,7 @@ async function updateReport(req, res) {
     const finalClientPhone = client_phone?.trim() || null;
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
+    const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
 
     // Update report
     await pool.query(
@@ -440,8 +413,9 @@ async function updateReport(req, res) {
            short_desc = $5,
            report_date = $6,
            last_edited_by = $7,
-           edited_by_ids = $8
-       WHERE id = $9`,
+           edited_by_ids = $8,
+           is_green = $9
+       WHERE id = $10`,
       [
         finalClientName,
         finalClientPhone,
@@ -451,6 +425,7 @@ async function updateReport(req, res) {
         finalReportDate,
         req.user.id,
         newEditedByIds,
+        finalIsGreen,
         id,
       ]
     );

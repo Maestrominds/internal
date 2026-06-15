@@ -45,6 +45,10 @@ class ReportItem {
   final double amount;
   final String reportDate;
   final String managerName;
+  final bool isGreen;
+  final String? note;
+  final String? shortDesc;
+  final int imageCount;
 
   const ReportItem({
     required this.id,
@@ -53,15 +57,23 @@ class ReportItem {
     required this.amount,
     required this.reportDate,
     required this.managerName,
+    required this.isGreen,
+    this.note,
+    this.shortDesc,
+    required this.imageCount,
   });
 
   factory ReportItem.fromJson(Map<String, dynamic> json) => ReportItem(
-    id: json['id'],
-    clientName: json['client_name'],
+    id: json['id'] ?? '',
+    clientName: json['client_name'] ?? '',
     clientPhone: json['client_phone'],
     amount: double.tryParse(json['amount'].toString()) ?? 0,
     reportDate: json['report_date'] ?? '',
     managerName: json['manager_name'] ?? '',
+    isGreen: json['is_green'] ?? true,
+    note: json['note'],
+    shortDesc: json['short_desc'],
+    imageCount: json['image_count'] ?? 0,
   );
 }
 
@@ -81,6 +93,7 @@ class ReportDetail {
   final String createdAt;
   final List<ReportImage> images;
   final List<EditorItem> editors;
+  final bool isGreen;
 
   const ReportDetail({
     required this.id,
@@ -97,11 +110,12 @@ class ReportDetail {
     required this.createdAt,
     required this.images,
     required this.editors,
+    required this.isGreen,
   });
 
   factory ReportDetail.fromJson(Map<String, dynamic> json) => ReportDetail(
-    id: json['id'],
-    clientName: json['client_name'],
+    id: json['id'] ?? '',
+    clientName: json['client_name'] ?? '',
     clientPhone: json['client_phone'],
     amount: double.tryParse(json['amount'].toString()) ?? 0,
     reportDate: json['report_date'] ?? '',
@@ -118,6 +132,7 @@ class ReportDetail {
     editors: (json['editors'] as List<dynamic>? ?? [])
         .map((e) => EditorItem.fromJson(e))
         .toList(),
+    isGreen: json['is_green'] ?? true,
   );
 }
 
