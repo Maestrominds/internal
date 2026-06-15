@@ -96,8 +96,13 @@ async function getClients(req, res) {
     for (const phone in clientsMap) {
       clientsList.push(clientsMap[phone]);
     }
+    const existingNames = new Set(
+      Object.values(clientsMap).map(c => c.client_name.toLowerCase())
+    );
     for (const name of nameOnlyClients) {
-      clientsList.push({ client_name: name, client_phone: null });
+      if (!existingNames.has(name.toLowerCase())) {
+        clientsList.push({ client_name: name, client_phone: null });
+      }
     }
 
     clientsList.sort((a, b) =>

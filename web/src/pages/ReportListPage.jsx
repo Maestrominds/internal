@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getReports, getClients, getReportById } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
@@ -28,10 +28,11 @@ function SkeletonCards() {
 }
 
 export default function ReportListPage() {
+  const location = useLocation();
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [reports, setReports] = useState([]);
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedClient, setSelectedClient] = useState(location.state?.client || null);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -364,6 +365,7 @@ export default function ReportListPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <Link
                   to={`/dashboard/reports/${selectedReportForAction.id}`}
+                  state={{ client: selectedClient }}
                   className="btn btn-primary"
                   style={{ textAlign: 'center', display: 'block', textDecoration: 'none' }}
                   onClick={() => setSelectedReportForAction(null)}
@@ -372,7 +374,7 @@ export default function ReportListPage() {
                 </Link>
                 <button
                   className="btn btn-outline"
-                  style={{ width: '100%', borderColor: 'var(--accent-500)', color: 'var(--accent-500)', cursor: 'pointer' }}
+                  style={{ width: '100%', cursor: 'pointer' }}
                   onClick={() => handleEditClick(selectedReportForAction.id)}
                 >
                   ✏️ Edit Transaction

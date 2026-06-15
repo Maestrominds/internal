@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getReportById } from '../api/reports';
 import { formatINR, formatDate } from '../utils/format';
@@ -37,6 +37,7 @@ function SkeletonDetail() {
 export default function ReportDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +79,7 @@ export default function ReportDetailsPage() {
       <div className="page-header">
         <div className="flex gap-3" style={{ alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <div className="flex gap-3" style={{ alignItems: 'center' }}>
-            <button className="back-btn" onClick={() => navigate('/dashboard/reports')}>
+            <button className="back-btn" onClick={() => navigate('/dashboard/reports', { state: { client: location.state?.client } })}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
