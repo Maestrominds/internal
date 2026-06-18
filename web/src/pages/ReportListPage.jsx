@@ -284,7 +284,7 @@ export default function ReportListPage() {
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border-color, #e5e7eb)', backgroundColor: 'var(--table-header-bg, #f9fafb)' }}>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Created / Edited By</th>
-                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Date</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Next Report Date</th>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description</th>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Amount</th>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Images</th>
@@ -304,7 +304,7 @@ export default function ReportListPage() {
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 500 }}>{r.manager_name}</td>
-                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{formatDate(r.report_date)}</td>
+                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{r.next_report_date ? formatDate(r.next_report_date) : '—'}</td>
                         <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {r.note ? <strong>[{r.note}] </strong> : ''}{r.short_desc || 'No description'}
                         </td>
