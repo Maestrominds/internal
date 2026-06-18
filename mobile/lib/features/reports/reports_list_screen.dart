@@ -615,7 +615,8 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 }
 
