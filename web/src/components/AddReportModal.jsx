@@ -11,14 +11,15 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-export default function AddReportModal({ onClose, onSuccess }) {
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
+export default function AddReportModal({ prefilledClientName, prefilledClientPhone, onClose, onSuccess }) {
+  const [clientName, setClientName] = useState(prefilledClientName || '');
+  const [clientPhone, setClientPhone] = useState(prefilledClientPhone || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [captions, setCaptions] = useState([]);
   const [shortDesc, setShortDesc] = useState('');
   const [date, setDate] = useState(today());
+  const [nextReportDate, setNextReportDate] = useState('');
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [isGreen, setIsGreen] = useState(true);
@@ -76,6 +77,7 @@ export default function AddReportModal({ onClose, onSuccess }) {
     formData.append('short_desc', shortDesc.trim());
     formData.append('report_date', date);
     formData.append('is_green', isGreen);
+    formData.append('next_report_date', nextReportDate);
     images.forEach((img) => formData.append('images', img));
     captions.forEach((cap) => formData.append('captions', cap.trim()));
 
@@ -105,38 +107,42 @@ export default function AddReportModal({ onClose, onSuccess }) {
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             {/* Client Name */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="report-client">Client Name</label>
-              <input
-                id="report-client"
-                className="form-input"
-                type="text"
-                placeholder="Enter client name (optional)"
-                value={clientName}
-                maxLength={MAX_CLIENT}
-                onChange={(e) => setClientName(e.target.value)}
-              />
-              <div className={`char-count ${clientName.length >= MAX_CLIENT ? 'at-limit' : clientName.length >= 40 ? 'near-limit' : ''}`}>
-                {clientName.length}/{MAX_CLIENT}
+            {!prefilledClientName && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="report-client">Client Name</label>
+                <input
+                  id="report-client"
+                  className="form-input"
+                  type="text"
+                  placeholder="Enter client name (optional)"
+                  value={clientName}
+                  maxLength={MAX_CLIENT}
+                  onChange={(e) => setClientName(e.target.value)}
+                />
+                <div className={`char-count ${clientName.length >= MAX_CLIENT ? 'at-limit' : clientName.length >= 40 ? 'near-limit' : ''}`}>
+                  {clientName.length}/{MAX_CLIENT}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Client Phone */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="report-phone">Client Phone Number</label>
-              <input
-                id="report-phone"
-                className="form-input"
-                type="tel"
-                placeholder="Enter client phone number (optional)"
-                value={clientPhone}
-                maxLength={15}
-                onChange={(e) => setClientPhone(e.target.value)}
-              />
-              <div className={`char-count ${clientPhone.length >= 15 ? 'at-limit' : ''}`}>
-                {clientPhone.length}/15
+            {!prefilledClientName && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="report-phone">Client Phone Number</label>
+                <input
+                  id="report-phone"
+                  className="form-input"
+                  type="tel"
+                  placeholder="Enter client phone number (optional)"
+                  value={clientPhone}
+                  maxLength={15}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                />
+                <div className={`char-count ${clientPhone.length >= 15 ? 'at-limit' : ''}`}>
+                  {clientPhone.length}/15
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Amount */}
             <div className="form-group">
@@ -212,6 +218,21 @@ export default function AddReportModal({ onClose, onSuccess }) {
                   value={date}
                   max={today()}
                   onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Next Report Date */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="next-report-date">Next Report Date (Optional Reminder)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="next-report-date"
+                  className="form-input"
+                  type="date"
+                  value={nextReportDate}
+                  min={today()}
+                  onChange={(e) => setNextReportDate(e.target.value)}
                 />
               </div>
             </div>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
@@ -185,7 +186,40 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
     final clientsAsync = ref.watch(clientsProvider);
     final clientReportsAsync = ref.watch(clientReportsProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (_selectedClient != null) {
+          setState(() {
+            _selectedClient = null;
+            _searchQuery = '';
+            _searchCtrl.clear();
+          });
+        } else {
+          final exit = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Exit App'),
+              content: const Text('Are you sure you want to exit?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Exit'),
+                ),
+              ],
+            ),
+          );
+          if (exit == true) {
+            await SystemNavigator.pop();
+          }
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: AppTheme.primary800,
         leading: _selectedClient != null
@@ -273,7 +307,10 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
           final success = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (ctx) => const AddReportScreen(),
+              builder: (ctx) => AddReportScreen(
+                prefilledClientName: _selectedClient?.clientName,
+                prefilledClientPhone: _selectedClient?.clientPhone,
+              ),
             ),
           );
           if (success == true) {
@@ -289,7 +326,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
         },
         backgroundColor: AppTheme.accent500,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Report', style: TextStyle(color: Colors.white)),
+        label: Text(_selectedClient == null ? 'Add Client' : 'Add Report', style: const TextStyle(color: Colors.white)),
       ),
       body: Column(
         children: [

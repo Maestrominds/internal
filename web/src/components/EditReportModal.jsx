@@ -20,6 +20,9 @@ export default function EditReportModal({ report, onClose, onSuccess }) {
   const [date, setDate] = useState(
     report.report_date ? report.report_date.split('T')[0] : today()
   );
+  const [nextReportDate, setNextReportDate] = useState(
+    report.next_report_date ? report.next_report_date.split('T')[0] : ''
+  );
 
   // Existing images state
   const [existingImages] = useState(report.images || []);
@@ -94,6 +97,7 @@ export default function EditReportModal({ report, onClose, onSuccess }) {
     formData.append('short_desc', shortDesc.trim());
     formData.append('report_date', date);
     formData.append('is_green', isGreen);
+    formData.append('next_report_date', nextReportDate);
     formData.append('deleted_image_ids', JSON.stringify(deletedImageIds));
     newImages.forEach((img) => formData.append('images', img));
     newCaptions.forEach((cap) => formData.append('captions', cap.trim()));
@@ -231,6 +235,21 @@ export default function EditReportModal({ report, onClose, onSuccess }) {
                   value={date}
                   max={today()}
                   onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Next Report Date */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit-next-report-date">Next Report Date (Optional Reminder)</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="edit-next-report-date"
+                  className="form-input"
+                  type="date"
+                  value={nextReportDate}
+                  min={today()}
+                  onChange={(e) => setNextReportDate(e.target.value)}
                 />
               </div>
             </div>

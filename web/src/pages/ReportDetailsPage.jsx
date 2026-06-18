@@ -162,6 +162,12 @@ export default function ReportDetailsPage() {
                   <label>Submitted On</label>
                   <p>{formatDate(report.created_at)}</p>
                 </div>
+                {report.next_report_date && (
+                  <div className="detail-field">
+                    <label>Next Report Date</label>
+                    <p style={{ fontWeight: 600, color: 'var(--accent-500)' }}>{formatDate(report.next_report_date)}</p>
+                  </div>
+                )}
               </div>
 
               {report.short_desc && (

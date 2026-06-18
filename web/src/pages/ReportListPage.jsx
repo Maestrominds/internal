@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { getReports, getClients, getReportById } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
@@ -29,10 +29,18 @@ function SkeletonCards() {
 
 export default function ReportListPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [reports, setReports] = useState([]);
-  const [selectedClient, setSelectedClient] = useState(location.state?.client || null);
+
+  const clientNameParam = searchParams.get('client_name');
+  const clientPhoneParam = searchParams.get('client_phone');
+
+  const selectedClient = useMemo(() => {
+    return clientNameParam ? { client_name: clientNameParam, client_phone: clientPhoneParam } : null;
+  }, [clientNameParam, clientPhoneParam]);
+
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -114,12 +122,15 @@ export default function ReportListPage() {
 
   const handleClientClick = (client) => {
     setSearchInput('');
-    setSelectedClient(client);
+    setSearchParams({
+      client_name: client.client_name,
+      client_phone: client.client_phone || ''
+    });
   };
 
   const handleBackToClients = () => {
     setSearchInput('');
-    setSelectedClient(null);
+    setSearchParams({});
   };
 
   // Filter clients list locally
@@ -179,7 +190,7 @@ export default function ReportListPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Add Report
+            {selectedClient ? 'Add Report' : 'Add Client'}
           </button>
         </div>
       </div>
@@ -337,6 +348,8 @@ export default function ReportListPage() {
 
       {showAddModal && (
         <AddReportModal
+          prefilledClientName={selectedClient?.client_name}
+          prefilledClientPhone={selectedClient?.client_phone}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);

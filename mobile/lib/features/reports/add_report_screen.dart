@@ -11,7 +11,9 @@ import 'reports_provider.dart';
 
 class AddReportScreen extends ConsumerStatefulWidget {
   final ReportDetail? editReport;
-  const AddReportScreen({super.key, this.editReport});
+  final String? prefilledClientName;
+  final String? prefilledClientPhone;
+  const AddReportScreen({super.key, this.editReport, this.prefilledClientName, this.prefilledClientPhone});
 
   @override
   ConsumerState<AddReportScreen> createState() => _AddReportScreenState();
@@ -27,6 +29,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
   final _shortDescCtrl = TextEditingController();
 
   DateTime? _selectedDate;
+  DateTime? _nextReportDate;
   final ImagePicker _picker = ImagePicker();
 
   // New images state
@@ -56,9 +59,20 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       } catch (_) {
         _selectedDate = DateTime.now();
       }
+      if (r.nextReportDate != null && r.nextReportDate!.isNotEmpty) {
+        try {
+          _nextReportDate = DateTime.parse(r.nextReportDate!);
+        } catch (_) {}
+      }
       _existingImages.addAll(r.images);
     } else {
       _selectedDate = DateTime.now();
+      if (widget.prefilledClientName != null) {
+        _clientNameCtrl.text = widget.prefilledClientName!;
+      }
+      if (widget.prefilledClientPhone != null) {
+        _clientPhoneCtrl.text = widget.prefilledClientPhone!;
+      }
     }
   }
 
@@ -152,6 +166,32 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
     }
   }
 
+  Future<void> _selectNextReportDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _nextReportDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppTheme.primary700,
+              onPrimary: Colors.white,
+              onSurface: AppTheme.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _nextReportDate) {
+      setState(() {
+        _nextReportDate = picked;
+      });
+    }
+  }
+
   Future<void> _submit() async {
     // Validate captions for new images (must have captions if new image added)
     for (var i = 0; i < _newImages.length; i++) {
@@ -196,6 +236,9 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
         'report_date': _selectedDate != null
             ? DateFormat('yyyy-MM-dd').format(_selectedDate!)
             : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        'next_report_date': _nextReportDate != null
+            ? DateFormat('yyyy-MM-dd').format(_nextReportDate!)
+            : '',
       };
 
       // Add files
@@ -298,32 +341,32 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Client Name
-                  TextFormField(
-                    controller: _clientNameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Client Name',
-                      hintText: 'Enter client name',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
+                  // Client Name and Phone (only show if not prefilled)
+                  if (widget.prefilledClientName == null) ...[
+                    TextFormField(
+                      controller: _clientNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Client Name',
+                        hintText: 'Enter client name',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLength: 50,
                     ),
-                    maxLength: 50,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Client Phone
-                  TextFormField(
-                    controller: _clientPhoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Client Phone Number',
-                      hintText: 'Enter phone number',
-                      prefixIcon: Icon(Icons.phone),
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _clientPhoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: 'Client Phone Number',
+                        hintText: 'Enter phone number',
+                        prefixIcon: Icon(Icons.phone),
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLength: 15,
                     ),
-                    maxLength: 15,
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
 
                   // Amount
                   TextFormField(
@@ -422,6 +465,44 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
                       ),
                       trailing: const Icon(Icons.arrow_drop_down),
                       onTap: _selectDate,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Next Report Date selector card
+                  Card(
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(Icons.alarm, color: AppTheme.primary600),
+                      title: const Text(
+                        'Next Report Date (Optional Reminder)',
+                        style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                      ),
+                      subtitle: Text(
+                        _nextReportDate != null
+                            ? DateFormat('d MMMM yyyy').format(_nextReportDate!)
+                            : 'Not Set',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      trailing: _nextReportDate != null
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _nextReportDate = null;
+                                });
+                              },
+                            )
+                          : const Icon(Icons.arrow_drop_down),
+                      onTap: _selectNextReportDate,
                     ),
                   ),
                   const SizedBox(height: 16),

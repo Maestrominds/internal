@@ -322,6 +322,15 @@ class _DetailGrid extends StatelessWidget {
           width: (MediaQuery.of(context).size.width - 56) / 2,
           child: _field('SUBMITTED ON', _formatDate(report.createdAt)),
         ),
+        if (report.nextReportDate != null && report.nextReportDate!.isNotEmpty)
+          SizedBox(
+            width: (MediaQuery.of(context).size.width - 56) / 2,
+            child: _field(
+              'NEXT REPORT DATE',
+              _formatDate(report.nextReportDate!),
+              valueColor: AppTheme.accent500,
+            ),
+          ),
       ],
     );
   }

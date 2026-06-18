@@ -17,7 +17,7 @@ async function getReports(req, res) {
     const { client_name, client_phone, search } = req.query;
 
     let query = `
-      SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date, r.is_green, r.short_desc, r.note,
+      SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date, r.is_green, r.short_desc, r.note, r.next_report_date,
              u.name AS manager_name, u.role AS manager_role, u.id AS manager_id,
              (SELECT COUNT(*)::int FROM report_images WHERE report_id = r.id) AS image_count
       FROM reports r
@@ -178,7 +178,7 @@ async function getReportById(req, res) {
 // POST /api/reports (Boss & Manager)
 async function createReport(req, res) {
   try {
-    const { client_name, client_phone, amount, note, short_desc, report_date } = req.body;
+    const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
     const files = req.files || [];
 
     // All fields are optional except caption validation when images are uploaded
@@ -226,11 +226,12 @@ async function createReport(req, res) {
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
     const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
+    const finalNextReportDate = next_report_date || null;
 
     // Insert report
     const reportResult = await pool.query(
-      `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green, next_report_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         req.user.id,
@@ -241,6 +242,7 @@ async function createReport(req, res) {
         short_desc?.trim() || null,
         finalReportDate,
         finalIsGreen,
+        finalNextReportDate,
       ]
     );
 
@@ -283,7 +285,7 @@ async function createReport(req, res) {
 async function updateReport(req, res) {
   try {
     const { id } = req.params;
-    const { client_name, client_phone, amount, note, short_desc, report_date } = req.body;
+    const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
     const files = req.files || [];
 
     // Find original report and get submitter role
@@ -410,6 +412,7 @@ async function updateReport(req, res) {
     const finalAmount = amount ? parseFloat(amount) : 0;
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
     const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
+    const finalNextReportDate = next_report_date || null;
 
     // Update report
     await pool.query(
@@ -422,8 +425,9 @@ async function updateReport(req, res) {
            report_date = $6,
            last_edited_by = $7,
            edited_by_ids = $8,
-           is_green = $9
-       WHERE id = $10`,
+           is_green = $9,
+           next_report_date = $10
+       WHERE id = $11`,
       [
         finalClientName,
         finalClientPhone,
@@ -434,6 +438,7 @@ async function updateReport(req, res) {
         req.user.id,
         newEditedByIds,
         finalIsGreen,
+        finalNextReportDate,
         id,
       ]
     );

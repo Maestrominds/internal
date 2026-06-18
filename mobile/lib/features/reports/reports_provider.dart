@@ -49,6 +49,7 @@ class ReportItem {
   final String? note;
   final String? shortDesc;
   final int imageCount;
+  final String? nextReportDate;
 
   const ReportItem({
     required this.id,
@@ -61,6 +62,7 @@ class ReportItem {
     this.note,
     this.shortDesc,
     required this.imageCount,
+    this.nextReportDate,
   });
 
   factory ReportItem.fromJson(Map<String, dynamic> json) => ReportItem(
@@ -74,6 +76,7 @@ class ReportItem {
     note: json['note'],
     shortDesc: json['short_desc'],
     imageCount: json['image_count'] ?? 0,
+    nextReportDate: json['next_report_date'],
   );
 }
 
@@ -94,6 +97,7 @@ class ReportDetail {
   final List<ReportImage> images;
   final List<EditorItem> editors;
   final bool isGreen;
+  final String? nextReportDate;
 
   const ReportDetail({
     required this.id,
@@ -111,6 +115,7 @@ class ReportDetail {
     required this.images,
     required this.editors,
     required this.isGreen,
+    this.nextReportDate,
   });
 
   factory ReportDetail.fromJson(Map<String, dynamic> json) => ReportDetail(
@@ -133,6 +138,7 @@ class ReportDetail {
         .map((e) => EditorItem.fromJson(e))
         .toList(),
     isGreen: json['is_green'] ?? true,
+    nextReportDate: json['next_report_date'],
   );
 }
 
