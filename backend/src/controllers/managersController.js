@@ -119,10 +119,18 @@ async function deleteManager(req, res) {
 }
 
 // POST /api/managers/:id/reset-password (Boss only)
-// Generates new random password - does NOT invalidate current sessions
+// Updates manager password with user-provided password
 async function resetManagerPassword(req, res) {
   try {
     const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+    }
 
     const check = await pool.query(
       `SELECT id, role, name FROM users WHERE id = $1`,
@@ -136,8 +144,7 @@ async function resetManagerPassword(req, res) {
       return res.status(400).json({ message: 'Can only reset manager passwords.' });
     }
 
-    const plainPassword = generatePassword();
-    const hashedPassword = await bcrypt.hash(plainPassword, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     await pool.query(
       `UPDATE users SET password = $1 WHERE id = $2`,
@@ -146,7 +153,6 @@ async function resetManagerPassword(req, res) {
 
     return res.status(200).json({
       message: 'Password reset successfully.',
-      password: plainPassword, // Boss copies and shares this
       managerName: check.rows[0].name,
     });
   } catch (err) {

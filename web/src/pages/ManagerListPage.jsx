@@ -4,7 +4,6 @@ import { getManagers, deleteManager, resetManagerPassword } from '../api/manager
 import { formatDate, getInitials } from '../utils/format';
 import AddManagerModal from '../components/AddManagerModal';
 import ConfirmModal from '../components/ConfirmModal';
-import PasswordDisplayModal from '../components/PasswordDisplayModal';
 import toast from 'react-hot-toast';
 
 function SkeletonTable() {
@@ -23,7 +22,6 @@ export default function ManagerListPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // manager obj
   const [resetting, setResetting] = useState(null); // manager id
-  const [newPassword, setNewPassword] = useState(null); // { name, password }
 
   const fetchManagers = async () => {
     setLoading(true);
@@ -52,10 +50,15 @@ export default function ManagerListPage() {
   }
 
   async function handleResetPassword(manager) {
+    const password = prompt(`Enter new password for ${manager.name} (min 6 characters):`);
+    if (password === null) return; // Cancelled by user
+    if (password.trim().length < 6) {
+      return toast.error('Password must be at least 6 characters');
+    }
     setResetting(manager.id);
     try {
-      const res = await resetManagerPassword(manager.id);
-      setNewPassword({ name: manager.name, password: res.data.password });
+      await resetManagerPassword(manager.id, password.trim());
+      toast.success(`Password for ${manager.name} reset successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Reset failed');
     } finally {
@@ -180,13 +183,6 @@ export default function ManagerListPage() {
         />
       )}
 
-      {newPassword && (
-        <PasswordDisplayModal
-          name={newPassword.name}
-          password={newPassword.password}
-          onClose={() => setNewPassword(null)}
-        />
-      )}
     </Layout>
   );
 }
