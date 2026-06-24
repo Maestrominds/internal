@@ -487,10 +487,20 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                         // Compute total outstanding and started date
                         final double totalAmount = reports.fold(0.0, (sum, r) => r.isGreen ? sum + r.amount : sum - r.amount);
                         String startedDate = '—';
+                        ReportItem? firstReport;
                         if (reports.isNotEmpty) {
                           final dates = reports.map((r) => DateTime.tryParse(r.reportDate) ?? DateTime(9999)).toList();
                           dates.sort();
                           startedDate = DateFormat('d MMM yyyy').format(dates.first);
+
+                          // Find first report chronologically
+                          final sortedReports = List<ReportItem>.from(reports);
+                          sortedReports.sort((a, b) {
+                            final dateA = DateTime.tryParse(a.reportDate) ?? DateTime(9999);
+                            final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(9999);
+                            return dateA.compareTo(dateB);
+                          });
+                          firstReport = sortedReports.first;
                         }
 
                         Widget content;
@@ -569,14 +579,18 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            'NET OUTSTANDING',
+                                            '1st REPORT AMT',
                                             style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
+                                            firstReport != null
+                                                ? '${firstReport.isGreen ? "+" : "-"}${formatINR(firstReport.amount)}'
+                                                : '—',
                                             style: TextStyle(
-                                              color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                              color: firstReport != null
+                                                  ? (firstReport.isGreen ? Colors.greenAccent : Colors.redAccent)
+                                                  : Colors.white,
                                               fontSize: 18,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -586,6 +600,20 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
+                                          const Text(
+                                            'NET OUTSTANDING',
+                                            style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
+                                            style: TextStyle(
+                                              color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
                                           const Text(
                                             'STARTED DATE',
                                             style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),

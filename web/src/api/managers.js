@@ -2,8 +2,8 @@ import api from './axios';
 
 export const getManagers = () => api.get('/managers');
 
-export const addManager = (name, email) =>
-  api.post('/managers', { name, email });
+export const addManager = (name, email, password) =>
+  api.post('/managers', { name, email, password });
 
 export const deleteManager = (id) => api.delete(`/managers/${id}`);
 

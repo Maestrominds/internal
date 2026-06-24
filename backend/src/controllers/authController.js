@@ -87,4 +87,43 @@ function getMe(req, res) {
   });
 }
 
-module.exports = { login, logout, getMe };
+// POST /api/auth/change-password
+async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters.' });
+    }
+    if (req.user.role !== 'boss') {
+      return res.status(403).json({ message: 'Only boss can change password through this endpoint.' });
+    }
+
+    // Retrieve user password hash from db
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    const user = result.rows[0];
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect current password.' });
+    }
+
+    // Hash and update to new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+
+    return res.status(200).json({ message: 'Password changed successfully.' });
+  } catch (err) {
+    console.error('changePassword error:', err);
+    return res.status(500).json({ message: 'Server error.' });
+  }
+}
+
+module.exports = { login, logout, getMe, changePassword };

@@ -146,6 +146,15 @@ export default function ReportListPage() {
     (r.note && r.note.toLowerCase().includes(searchInput.toLowerCase()))
   );
 
+  const firstReport = useMemo(() => {
+    if (reports.length === 0) return null;
+    const sorted = [...reports].sort((a, b) => new Date(a.report_date) - new Date(b.report_date));
+    return sorted[0];
+  }, [reports]);
+
+  const firstReportAmount = firstReport ? parseFloat(firstReport.amount) || 0 : 0;
+  const firstReportIsGreen = firstReport ? firstReport.is_green : true;
+
   return (
     <Layout>
       <div className="page-header">
@@ -258,19 +267,32 @@ export default function ReportListPage() {
                 )}
                 <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
                   <div>
+                    <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>1st Report Amt</span>
+                    {firstReport ? (
+                      <h4 style={{
+                        margin: '4px 0 0 0',
+                        fontSize: '1.6rem',
+                        fontWeight: 800,
+                        color: firstReportIsGreen ? '#10b981' : '#f87171'
+                      }}>
+                        {firstReportIsGreen ? '+' : '-'} {formatINR(firstReportAmount)}
+                      </h4>
+                    ) : (
+                      <p style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 600 }}>-</p>
+                    )}
+                  </div>
+                  <div>
                     <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Outstanding</span>
                     <h4 style={{
                       margin: '4px 0 0 0',
-                      fontSize: '1.6rem',
-                      fontWeight: 800,
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
                       color: reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0) >= 0 ? '#10b981' : '#f87171'
                     }}>
                       {reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0) >= 0 ? '+' : ''}
                       {formatINR(reports.reduce((sum, r) => r.is_green ? sum + (parseFloat(r.amount) || 0) : sum - (parseFloat(r.amount) || 0), 0))}
                     </h4>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Started Date</span>
+                    <span style={{ display: 'block', marginTop: '8px', fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Started Date</span>
                     <p style={{ margin: '4px 0 0 0', fontSize: '1.2rem', fontWeight: 600 }}>
                       {reports.length > 0 ? formatDate(new Date(Math.min(...reports.map(r => new Date(r.report_date).getTime()))).toISOString().split('T')[0]) : '-'}
                     </p>

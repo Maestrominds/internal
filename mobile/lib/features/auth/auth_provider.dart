@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../core/api_service.dart';
+import '../../core/exceptions.dart';
 
 // User model
 class UserModel {
@@ -86,11 +87,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(user: user);
       return true;
     } on DioException catch (e) {
-      final msg = e.response?.data?['message'] ?? 'Login failed';
-      state = AuthState(error: msg);
+      state = AuthState(error: AppException.fromDioException(e).message);
       return false;
-    } catch (_) {
-      state = const AuthState(error: 'Unexpected error');
+    } catch (e) {
+      state = AuthState(error: AppException.fromError(e).message);
       return false;
     }
   }

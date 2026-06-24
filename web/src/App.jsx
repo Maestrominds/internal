@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import ReportListPage from './pages/ReportListPage';
 import ReportDetailsPage from './pages/ReportDetailsPage';
 import ManagerListPage from './pages/ManagerListPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import './index.css';
 
 export default function App() {
@@ -54,6 +55,16 @@ export default function App() {
             element={
               <ProtectedRoute role="boss">
                 <ManagerListPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Reset Password — boss only */}
+          <Route
+            path="/dashboard/reset-password"
+            element={
+              <ProtectedRoute role="boss">
+                <ResetPasswordPage />
               </ProtectedRoute>
             }
           />

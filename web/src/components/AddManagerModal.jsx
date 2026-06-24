@@ -8,14 +8,16 @@ const MAX_EMAIL = 50;
 export default function AddManagerModal({ onClose, onSuccess }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return toast.error('Please fill all fields');
+    if (!name.trim() || !email.trim() || !password) return toast.error('Please fill all fields');
+    if (password.length < 6) return toast.error('Password must be at least 6 characters');
     setLoading(true);
     try {
-      const res = await addManager(name.trim(), email.trim());
+      const res = await addManager(name.trim(), email.trim(), password);
       toast.success('Manager added successfully!');
       onSuccess(res.data);
     } catch (err) {
@@ -73,9 +75,19 @@ export default function AddManagerModal({ onClose, onSuccess }) {
               </div>
             </div>
 
-            <p className="text-muted" style={{ fontSize: '0.8rem' }}>
-              A secure password will be auto-generated. You can copy and share it with the manager.
-            </p>
+            <div className="form-group">
+              <label className="form-label" htmlFor="mgr-password">Password</label>
+              <input
+                id="mgr-password"
+                className="form-input"
+                type="password"
+                placeholder="Choose a password (min 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={6}
+                required
+              />
+            </div>
           </div>
 
           <div className="modal-footer">
@@ -86,7 +98,7 @@ export default function AddManagerModal({ onClose, onSuccess }) {
               className="btn btn-primary"
               disabled={loading}
             >
-              {loading ? 'Adding...' : 'Add & Generate Password'}
+              {loading ? 'Adding...' : 'Add Manager'}
             </button>
           </div>
         </form>

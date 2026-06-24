@@ -21,16 +21,19 @@ async function getManagers(req, res) {
 // POST /api/managers (Boss only)
 async function addManager(req, res) {
   try {
-    const { name, email } = req.body;
+    const { name, email, password } = req.body;
 
-    if (!name || !email) {
-      return res.status(400).json({ message: 'Name and email are required.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required.' });
     }
     if (name.length > 50) {
       return res.status(400).json({ message: 'Name must be 50 characters or less.' });
     }
     if (email.length > 50) {
       return res.status(400).json({ message: 'Email must be 50 characters or less.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters.' });
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,8 +53,7 @@ async function addManager(req, res) {
       }
 
       // If they exist but were soft-deleted (inactive), reactivate them!
-      const plainPassword = generatePassword();
-      const hashedPassword = await bcrypt.hash(plainPassword, 12);
+      const hashedPassword = await bcrypt.hash(password, 12);
 
       const result = await pool.query(
         `UPDATE users
@@ -64,12 +66,10 @@ async function addManager(req, res) {
       return res.status(200).json({
         message: 'Manager reactivated successfully.',
         manager: result.rows[0],
-        password: plainPassword,
       });
     }
 
-    const plainPassword = generatePassword();
-    const hashedPassword = await bcrypt.hash(plainPassword, 12);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const result = await pool.query(
       `INSERT INTO users (name, email, password, role, is_active)
@@ -81,7 +81,6 @@ async function addManager(req, res) {
     return res.status(201).json({
       message: 'Manager added successfully.',
       manager: result.rows[0],
-      password: plainPassword, // Boss copies and shares this
     });
   } catch (err) {
     console.error('addManager error:', err);

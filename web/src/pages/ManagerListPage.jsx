@@ -162,9 +162,8 @@ export default function ManagerListPage() {
       {showAddModal && (
         <AddManagerModal
           onClose={() => setShowAddModal(false)}
-          onSuccess={(data) => {
+          onSuccess={() => {
             setShowAddModal(false);
-            setNewPassword({ name: data.manager.name, password: data.password });
             fetchManagers();
           }}
         />
