@@ -600,7 +600,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            '1st REPORT AMT',
+                                            'ISSUED AMT',
                                             style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                                           ),
                                           const SizedBox(height: 4),
