@@ -4,6 +4,7 @@ import { getManagers, deleteManager, resetManagerPassword } from '../api/manager
 import { formatDate, getInitials } from '../utils/format';
 import AddManagerModal from '../components/AddManagerModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 import toast from 'react-hot-toast';
 
 function SkeletonTable() {
@@ -22,6 +23,7 @@ export default function ManagerListPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // manager obj
   const [resetting, setResetting] = useState(null); // manager id
+  const [resetPasswordForManager, setResetPasswordForManager] = useState(null);
 
   const fetchManagers = async () => {
     setLoading(true);
@@ -49,18 +51,14 @@ export default function ManagerListPage() {
     }
   }
 
-  async function handleResetPassword(manager) {
-    const password = prompt(`Enter new password for ${manager.name} (min 6 characters):`);
-    if (password === null) return; // Cancelled by user
-    if (password.trim().length < 6) {
-      return toast.error('Password must be at least 6 characters');
-    }
+  async function handleResetPassword(manager, password) {
     setResetting(manager.id);
     try {
-      await resetManagerPassword(manager.id, password.trim());
+      await resetManagerPassword(manager.id, password);
       toast.success(`Password for ${manager.name} reset successfully!`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Reset failed');
+      throw err;
     } finally {
       setResetting(null);
     }
@@ -128,7 +126,7 @@ export default function ManagerListPage() {
                         <button
                           id={`reset-pwd-${m.id}`}
                           className="btn btn-outline btn-sm"
-                          onClick={() => handleResetPassword(m)}
+                          onClick={() => setResetPasswordForManager(m)}
                           disabled={resetting === m.id}
                           title="Reset Password"
                         >
@@ -183,6 +181,13 @@ export default function ManagerListPage() {
         />
       )}
 
+      {resetPasswordForManager && (
+        <ResetPasswordModal
+          manager={resetPasswordForManager}
+          onClose={() => setResetPasswordForManager(null)}
+          onConfirm={(password) => handleResetPassword(resetPasswordForManager, password)}
+        />
+      )}
     </Layout>
   );
 }
