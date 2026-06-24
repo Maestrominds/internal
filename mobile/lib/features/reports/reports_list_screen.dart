@@ -572,6 +572,27 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                     ),
                                   ],
                                   const SizedBox(height: 16),
+                                  // Net Outstanding at the left-top corner position
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'NET OUTSTANDING',
+                                        style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
+                                        style: TextStyle(
+                                          color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // 1st Report Amt and Started Date aligned in the same line
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -591,8 +612,8 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                               color: firstReport != null
                                                   ? (firstReport.isGreen ? Colors.greenAccent : Colors.redAccent)
                                                   : Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ],
@@ -600,20 +621,6 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'NET OUTSTANDING',
-                                            style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
-                                            style: TextStyle(
-                                              color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
                                           const Text(
                                             'STARTED DATE',
                                             style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
@@ -623,7 +630,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                             startedDate,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontSize: 16,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
