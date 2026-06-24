@@ -290,7 +290,7 @@ export default function ReportListPage() {
                   {/* 1st Report Amt and Started Date aligned in the same line */}
                   <div style={{ display: 'flex', gap: '60px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Issued Amt</span>
+                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amt Received</span>
                       <h4 style={{
                         margin: 0,
                         fontSize: '1.2rem',
