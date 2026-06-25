@@ -66,7 +66,7 @@ async function getClientExcel(req, res) {
 
     const clientNameDisplay = toTitleCase(rows[0].client_name);
     const businessName = rows[0].client_business_name || '';
-    const clientLabel = businessName ? `${clientNameDisplay} / ${businessName}` : clientNameDisplay;
+    const clientLabel = businessName ? `${clientNameDisplay}, ${businessName}` : clientNameDisplay;
 
     // First report's amount as "received amt"
     const firstRow = rows[0];
@@ -80,7 +80,7 @@ async function getClientExcel(req, res) {
 
       return {
         'S.No': idx + 1,
-        'Client Name / Business Name': clientLabel,
+        'Client Name, Business Name': clientLabel,
         'Date': formatDateStr(r.report_date),
         'Received Amt': formatINRPlain(receivedAmt),
         'Report Amount': formatINRPlain(amt),
@@ -226,7 +226,7 @@ async function getClientLedgerPdf(req, res) {
         { text: r.manager_name || '—', color: '#374151' },
         { text: amtText, color: amtColor },
         { text: outText, color: outColor },
-        { text: `${clientNameDisplay}${businessName ? ' / ' + businessName : ''}`, color: '#374151' },
+        { text: `${clientNameDisplay}${businessName ? ', ' + businessName : ''}`, color: '#374151' },
       ];
 
       doc.font('Helvetica').fontSize(7.5);

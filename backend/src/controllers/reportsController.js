@@ -242,7 +242,7 @@ async function createReport(req, res) {
     // Defaulting fields
     const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
     const finalClientPhone = client_phone?.trim() || null;
-    const finalAmount = amount ? parseFloat(amount) : 0;
+    const finalAmount = amount ? Number(amount).toFixed(2) : '0.00';
     const finalReportDate = report_date || new Date().toISOString().split('T')[0];
     const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
     const finalNextReportDate = next_report_date || null;
@@ -467,7 +467,7 @@ async function updateReport(req, res) {
       // Defaults for text fields
       const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
       const finalClientPhone = client_phone?.trim() || null;
-      const finalAmount = amount ? parseFloat(amount) : 0;
+      const finalAmount = amount ? Number(amount).toFixed(2) : '0.00';
       const finalReportDate = report_date || new Date().toISOString().split('T')[0];
       const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
       const finalNextReportDate = next_report_date || null;
