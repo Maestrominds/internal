@@ -189,7 +189,7 @@ async function getClientLedgerPdf(req, res) {
 
     // ── Table Header ──
     const tableTop = doc.y;
-    const colWidths = [35, 95, 120, 100, 100, 105];
+    const colWidths = [30, 75, 95, 100, 105, 110];
     const colX = [40];
     for (let i = 1; i < colWidths.length; i++) {
       colX.push(colX[i - 1] + colWidths[i - 1]);

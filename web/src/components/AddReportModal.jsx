@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createReport } from '../api/reports';
 import toast from 'react-hot-toast';
+import { compressImage } from '../utils/compress';
 
 const MAX_CLIENT = 50;
 const MAX_NOTE = 20;
@@ -29,7 +30,7 @@ export default function AddReportModal({ prefilledClientName, prefilledClientPho
   const [isGreen, setIsGreen] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  function handleImages(e) {
+  async function handleImages(e) {
     const files = Array.from(e.target.files || []);
     const remaining = MAX_IMAGES - images.length;
     const toAdd = files.slice(0, remaining);
@@ -38,15 +39,23 @@ export default function AddReportModal({ prefilledClientName, prefilledClientPho
       toast.error(`Max ${MAX_IMAGES} images allowed`);
     }
 
-    setImages((prev) => [...prev, ...toAdd]);
-    setCaptions((prev) => [...prev, ...toAdd.map(() => '')]);
-    toAdd.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => setPreviews((prev) => [...prev, ev.target.result]);
-      reader.readAsDataURL(file);
-    });
-    // Reset file input so same file can be re-added if removed
-    e.target.value = '';
+    setLoading(true);
+    try {
+      const compressedFiles = await Promise.all(toAdd.map(file => compressImage(file)));
+      setImages((prev) => [...prev, ...compressedFiles]);
+      setCaptions((prev) => [...prev, ...compressedFiles.map(() => '')]);
+      compressedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => setPreviews((prev) => [...prev, ev.target.result]);
+        reader.readAsDataURL(file);
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to compress images');
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
   }
 
   function removeImage(idx) {

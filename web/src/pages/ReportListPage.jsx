@@ -199,7 +199,12 @@ export default function ReportListPage() {
 
   const firstReport = useMemo(() => {
     if (reports.length === 0) return null;
-    const sorted = [...reports].sort((a, b) => new Date(a.report_date) - new Date(b.report_date));
+    const sorted = [...reports].sort((a, b) => {
+      const dateDiff = new Date(a.report_date) - new Date(b.report_date);
+      if (dateDiff !== 0) return dateDiff;
+      // Since reports is ordered newest first, the older report is later in the reports array (has a larger index).
+      return reports.indexOf(b) - reports.indexOf(a);
+    });
     return sorted[0];
   }, [reports]);
 

@@ -106,7 +106,10 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       return;
     }
 
-    final List<XFile> picked = await _picker.pickMultiImage();
+    final List<XFile> picked = await _picker.pickMultiImage(
+      imageQuality: 75,
+      maxWidth: 1200,
+    );
     if (picked.isEmpty) return;
     if (!mounted) return;
 

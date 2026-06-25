@@ -532,7 +532,10 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                           sortedReports.sort((a, b) {
                             final dateA = DateTime.tryParse(a.reportDate) ?? DateTime(9999);
                             final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(9999);
-                            return dateA.compareTo(dateB);
+                            final dateComp = dateA.compareTo(dateB);
+                            if (dateComp != 0) return dateComp;
+                            // Since reports is newest first, the older report has a higher index in the original list.
+                            return reports.indexOf(b).compareTo(reports.indexOf(a));
                           });
                           firstReport = sortedReports.first;
                         }
