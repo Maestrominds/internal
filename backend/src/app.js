@@ -17,13 +17,24 @@ const app = express();
 app.use(
   cors({
     origin: function (origin, callback) {
+      // Normalize origin for comparison (remove trailing slashes)
+      const normalizedOrigin = origin ? origin.replace(/\/$/, '') : null;
+
       // Allow requests with no origin (Flutter mobile, Postman, curl)
-      // and allowed web origins
+      if (!normalizedOrigin) {
+        return callback(null, true);
+      }
+
+      const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
       const allowed = [
-        process.env.CLIENT_URL || 'http://localhost:5173',
+        clientUrl,
+        'https://internal-tool-phi.vercel.app',
+        'https://internal-tool-x32g.vercel.app',
+        'http://localhost:5173',
         'http://localhost:5174',
-      ];
-      if (!origin || allowed.includes(origin)) {
+      ].filter(Boolean);
+
+      if (allowed.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -34,6 +45,7 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

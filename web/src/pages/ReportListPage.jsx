@@ -33,6 +33,9 @@ export default function ReportListPage() {
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [reports, setReports] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalReports, setTotalReports] = useState(0);
+  const LIMIT = 10;
 
   const clientNameParam = searchParams.get('client_name');
   const clientPhoneParam = searchParams.get('client_phone');
@@ -63,17 +66,20 @@ export default function ReportListPage() {
     }
   }, []);
 
-  const fetchReportsForClient = useCallback(async (client) => {
+  const fetchReportsForClient = useCallback(async (client, currentPage = 1) => {
     setLoading(true);
     try {
       const params = {
-        client_name: client.client_name
+        client_name: client.client_name,
+        page: currentPage,
+        limit: LIMIT
       };
       if (client.client_phone) {
         params.client_phone = client.client_phone;
       }
       const res = await getReports(params);
       setReports(res.data.reports);
+      setTotalReports(res.data.totalCount || 0);
     } catch {
       toast.error('Failed to load reports');
     } finally {
@@ -85,9 +91,9 @@ export default function ReportListPage() {
     if (!selectedClient) {
       fetchClients();
     } else {
-      fetchReportsForClient(selectedClient);
+      fetchReportsForClient(selectedClient, page);
     }
-  }, [selectedClient, fetchClients, fetchReportsForClient]);
+  }, [selectedClient, page, fetchClients, fetchReportsForClient]);
 
   const handleViewImages = async (reportId, e) => {
     e.stopPropagation();
@@ -122,6 +128,7 @@ export default function ReportListPage() {
 
   const handleClientClick = (client) => {
     setSearchInput('');
+    setPage(1);
     setSearchParams({
       client_name: client.client_name,
       client_phone: client.client_phone || ''
@@ -130,6 +137,7 @@ export default function ReportListPage() {
 
   const handleBackToClients = () => {
     setSearchInput('');
+    setPage(1);
     setSearchParams({});
   };
 
@@ -290,7 +298,7 @@ export default function ReportListPage() {
                   {/* 1st Report Amt and Started Date aligned in the same line */}
                   <div style={{ display: 'flex', gap: '60px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amt Received</span>
+                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>AMT RECEIVED</span>
                       <h4 style={{
                         margin: 0,
                         fontSize: '1.2rem',
@@ -373,6 +381,28 @@ export default function ReportListPage() {
                   </tbody>
                 </table>
               </div>
+              {/* Pagination Controls */}
+              {totalReports > LIMIT && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => setPage(p => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Page {page} of {Math.ceil(totalReports / LIMIT)}
+                  </span>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => setPage(p => Math.min(p + 1, Math.ceil(totalReports / LIMIT)))}
+                    disabled={page >= Math.ceil(totalReports / LIMIT)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )
         )}

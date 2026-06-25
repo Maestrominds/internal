@@ -241,20 +241,6 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
             : '',
       };
 
-      // Add files
-      final List<dio.MultipartFile> multipartFiles = [];
-      for (final imgFile in _newImages) {
-        multipartFiles.add(
-          await dio.MultipartFile.fromFile(
-            imgFile.path,
-            filename: imgFile.name,
-          ),
-        );
-      }
-      if (multipartFiles.isNotEmpty) {
-        formDataMap['images'] = multipartFiles;
-      }
-
       // Add captions
       final captionsList = _captionControllers.map((c) => c.text.trim()).toList();
       if (captionsList.isNotEmpty) {
@@ -267,6 +253,19 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       }
 
       final formData = dio.FormData.fromMap(formDataMap);
+
+      // Add files individually to avoid key bracket appending (e.g. images[] vs images)
+      for (final imgFile in _newImages) {
+        formData.files.add(
+          MapEntry(
+            'images',
+            await dio.MultipartFile.fromFile(
+              imgFile.path,
+              filename: imgFile.name,
+            ),
+          ),
+        );
+      }
 
       dio.Response response;
       if (widget.editReport != null) {

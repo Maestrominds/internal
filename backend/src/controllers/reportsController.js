@@ -15,11 +15,14 @@ function toTitleCase(str) {
 async function getReports(req, res) {
   try {
     const { client_name, client_phone, search } = req.query;
+    const page = parseInt(req.query.page, 10);
+    const limit = parseInt(req.query.limit, 10);
 
     let query = `
       SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date, r.is_green, r.short_desc, r.note, r.next_report_date,
              u.name AS manager_name, u.role AS manager_role, u.id AS manager_id,
-             (SELECT COUNT(*)::int FROM report_images WHERE report_id = r.id) AS image_count
+             (SELECT COUNT(*)::int FROM report_images WHERE report_id = r.id) AS image_count,
+             COUNT(*) OVER()::int AS total_count
       FROM reports r
       JOIN users u ON r.manager_id = u.id
     `;
@@ -51,12 +54,21 @@ async function getReports(req, res) {
 
     query += ' ORDER BY r.report_date DESC, r.created_at DESC';
 
+    if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
+      const offset = (page - 1) * limit;
+      query += ` LIMIT ${limit} OFFSET ${offset}`;
+    }
+
     const result = await pool.query(query, params);
-    const reports = result.rows.map(r => ({
-      ...r,
-      client_name: toTitleCase(r.client_name),
-    }));
-    return res.status(200).json({ reports });
+    const totalCount = result.rows.length > 0 ? result.rows[0].total_count : 0;
+    const reports = result.rows.map(r => {
+      const { total_count, ...reportData } = r;
+      return {
+        ...reportData,
+        client_name: toTitleCase(r.client_name),
+      };
+    });
+    return res.status(200).json({ reports, totalCount });
   } catch (err) {
     console.error('getReports error:', err);
     return res.status(500).json({ message: 'Server error.' });
@@ -228,53 +240,70 @@ async function createReport(req, res) {
     const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
     const finalNextReportDate = next_report_date || null;
 
-    // Insert report
-    const reportResult = await pool.query(
-      `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green, next_report_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING *`,
-      [
-        req.user.id,
-        finalClientName,
-        finalClientPhone,
-        finalAmount,
-        note?.trim() || null,
-        short_desc?.trim() || null,
-        finalReportDate,
-        finalIsGreen,
-        finalNextReportDate,
-      ]
-    );
-
-    const report = reportResult.rows[0];
-
-    // Upload images
+    const client = await pool.connect();
     const uploadedImages = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const caption = captions[i] ? captions[i].trim() : '';
-      try {
+    try {
+      await client.query('BEGIN');
+
+      // Insert report
+      const reportResult = await client.query(
+        `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green, next_report_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          req.user.id,
+          finalClientName,
+          finalClientPhone,
+          finalAmount,
+          note?.trim() || null,
+          short_desc?.trim() || null,
+          finalReportDate,
+          finalIsGreen,
+          finalNextReportDate,
+        ]
+      );
+
+      const report = reportResult.rows[0];
+
+      // Upload images
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const caption = captions[i] ? captions[i].trim() : '';
         const { secure_url, public_id } = await compressAndUpload(
           file.buffer,
           file.originalname
         );
 
-        const imgResult = await pool.query(
+        const imgResult = await client.query(
           `INSERT INTO report_images (report_id, cloudinary_url, cloudinary_id, caption)
            VALUES ($1, $2, $3, $4) RETURNING id, cloudinary_url, cloudinary_id, caption`,
           [report.id, secure_url, public_id, caption]
         );
 
         uploadedImages.push(imgResult.rows[0]);
-      } catch (imgErr) {
-        console.error('Image upload error:', imgErr);
       }
-    }
 
-    return res.status(201).json({
-      message: 'Report created successfully.',
-      report: { ...report, images: uploadedImages },
-    });
+      await client.query('COMMIT');
+
+      return res.status(201).json({
+        message: 'Report created successfully.',
+        report: { ...report, images: uploadedImages },
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      // Clean up uploaded images from Cloudinary on transaction failure
+      for (const img of uploadedImages) {
+        try {
+          await deleteFromCloudinary(img.cloudinary_id);
+        } catch (delErr) {
+          console.error('Failed to clean up Cloudinary image:', img.cloudinary_id, delErr);
+        }
+      }
+      console.error('createReport error:', err);
+      return res.status(500).json({ message: err.message || 'Server error.' });
+    } finally {
+      client.release();
+    }
   } catch (err) {
     console.error('createReport error:', err);
     return res.status(500).json({ message: 'Server error.' });
@@ -283,140 +312,146 @@ async function createReport(req, res) {
 
 // PUT /api/reports/:id (Boss & Manager)
 async function updateReport(req, res) {
-  try {
-    const { id } = req.params;
-    const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
-    const files = req.files || [];
+    const client = await pool.connect();
+    const uploadedImages = [];
+    const cloudinaryIdsToDelete = [];
+    try {
+      const { id } = req.params;
+      const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
+      const files = req.files || [];
 
-    // Find original report and get submitter role
-    const reportResult = await pool.query(
-      `SELECT r.*, u.role AS manager_role
+      // Find original report and get submitter role
+      const reportResult = await client.query(
+        `SELECT r.*, u.role AS manager_role
        FROM reports r
        JOIN users u ON r.manager_id = u.id
        WHERE r.id = $1`,
-      [id]
-    );
-    if (reportResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Report not found.' });
-    }
-    const report = reportResult.rows[0];
-
-    // Text Validations
-    if (client_name && client_name.length > 50) {
-      return res.status(400).json({ message: 'Client name must be 50 characters or less.' });
-    }
-    if (client_phone && client_phone.length > 15) {
-      return res.status(400).json({ message: 'Client phone must be 15 characters or less.' });
-    }
-    if (note && note.length > 20) {
-      return res.status(400).json({ message: 'Note must be 20 characters or less.' });
-    }
-    if (short_desc && short_desc.length > 200) {
-      return res.status(400).json({ message: 'Description must be 200 characters or less.' });
-    }
-    if (amount && (isNaN(parseFloat(amount)) || parseFloat(amount) < 0)) {
-      return res.status(400).json({ message: 'Invalid amount.' });
-    }
-
-    // Image Deletion processing
-    let deleteIds = [];
-    if (req.body.deleted_image_ids) {
-      try {
-        deleteIds = typeof req.body.deleted_image_ids === 'string'
-          ? JSON.parse(req.body.deleted_image_ids)
-          : req.body.deleted_image_ids;
-      } catch (e) {
-        deleteIds = req.body.deleted_image_ids.split(',').map(x => x.trim()).filter(Boolean);
+        [id]
+      );
+      if (reportResult.rows.length === 0) {
+        client.release();
+        return res.status(404).json({ message: 'Report not found.' });
       }
-    }
-    if (!Array.isArray(deleteIds)) {
-      deleteIds = [deleteIds];
-    }
+      const report = reportResult.rows[0];
 
-    const existingImagesResult = await pool.query(
-      'SELECT id, cloudinary_id FROM report_images WHERE report_id = $1',
-      [id]
-    );
-    const existingImages = existingImagesResult.rows;
-
-    // Validate image limit (max 5)
-    const newImageCount = files.length;
-    const finalImageCount = existingImages.length - deleteIds.length + newImageCount;
-    if (finalImageCount > 5) {
-      return res.status(400).json({ message: 'Maximum 5 images allowed in a report.' });
-    }
-
-    // Captions validation for new files
-    let captions = req.body.captions || [];
-    if (newImageCount > 0) {
-      if (!Array.isArray(captions)) {
-        captions = [captions];
+      // Text Validations
+      if (client_name && client_name.length > 50) {
+        client.release();
+        return res.status(400).json({ message: 'Client name must be 50 characters or less.' });
       }
-      if (captions.length !== newImageCount) {
-        return res.status(400).json({ message: 'Each new image must have a caption.' });
+      if (client_phone && client_phone.length > 15) {
+        client.release();
+        return res.status(400).json({ message: 'Client phone must be 15 characters or less.' });
       }
-      for (const cap of captions) {
-        if (!cap || !cap.trim()) {
-          return res.status(400).json({ message: 'Caption cannot be empty when adding images.' });
-        }
-        if (cap.length > 200) {
-          return res.status(400).json({ message: 'Caption must be 200 characters or less.' });
-        }
+      if (note && note.length > 20) {
+        client.release();
+        return res.status(400).json({ message: 'Note must be 20 characters or less.' });
       }
-    }
+      if (short_desc && short_desc.length > 200) {
+        client.release();
+        return res.status(400).json({ message: 'Description must be 200 characters or less.' });
+      }
+      if (amount && (isNaN(parseFloat(amount)) || parseFloat(amount) < 0)) {
+        client.release();
+        return res.status(400).json({ message: 'Invalid amount.' });
+      }
 
-    // Perform deletions
-    for (const imageId of deleteIds) {
-      const match = existingImages.find(img => img.id === imageId);
-      if (match) {
+      // Image Deletion processing
+      let deleteIds = [];
+      if (req.body.deleted_image_ids) {
         try {
-          await deleteFromCloudinary(match.cloudinary_id);
-        } catch (err) {
-          console.error('Failed to delete image from Cloudinary:', match.cloudinary_id, err);
+          deleteIds = typeof req.body.deleted_image_ids === 'string'
+            ? JSON.parse(req.body.deleted_image_ids)
+            : req.body.deleted_image_ids;
+        } catch (e) {
+          deleteIds = req.body.deleted_image_ids.split(',').map(x => x.trim()).filter(Boolean);
         }
-        await pool.query('DELETE FROM report_images WHERE id = $1', [imageId]);
       }
-    }
+      if (!Array.isArray(deleteIds)) {
+        deleteIds = [deleteIds];
+      }
 
-    // Perform additions of new files
-    const uploadedImages = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const caption = captions[i] ? captions[i].trim() : '';
-      try {
+      const existingImagesResult = await client.query(
+        'SELECT id, cloudinary_id FROM report_images WHERE report_id = $1',
+        [id]
+      );
+      const existingImages = existingImagesResult.rows;
+
+      // Validate image limit (max 5)
+      const newImageCount = files.length;
+      const finalImageCount = existingImages.length - deleteIds.length + newImageCount;
+      if (finalImageCount > 5) {
+        client.release();
+        return res.status(400).json({ message: 'Maximum 5 images allowed in a report.' });
+      }
+
+      // Captions validation for new files
+      let captions = req.body.captions || [];
+      if (newImageCount > 0) {
+        if (!Array.isArray(captions)) {
+          captions = [captions];
+        }
+        if (captions.length !== newImageCount) {
+          client.release();
+          return res.status(400).json({ message: 'Each new image must have a caption.' });
+        }
+        for (const cap of captions) {
+          if (!cap || !cap.trim()) {
+            client.release();
+            return res.status(400).json({ message: 'Caption cannot be empty when adding images.' });
+          }
+          if (cap.length > 200) {
+            client.release();
+            return res.status(400).json({ message: 'Caption must be 200 characters or less.' });
+          }
+        }
+      }
+
+      await client.query('BEGIN');
+
+      // Perform deletions in DB
+      for (const imageId of deleteIds) {
+        const match = existingImages.find(img => img.id === imageId);
+        if (match) {
+          cloudinaryIdsToDelete.push(match.cloudinary_id);
+          await client.query('DELETE FROM report_images WHERE id = $1', [imageId]);
+        }
+      }
+
+      // Perform additions of new files
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const caption = captions[i] ? captions[i].trim() : '';
         const { secure_url, public_id } = await compressAndUpload(
           file.buffer,
           file.originalname
         );
 
-        const imgResult = await pool.query(
+        const imgResult = await client.query(
           `INSERT INTO report_images (report_id, cloudinary_url, cloudinary_id, caption)
-           VALUES ($1, $2, $3, $4) RETURNING id, cloudinary_url, cloudinary_id, caption`,
+         VALUES ($1, $2, $3, $4) RETURNING id, cloudinary_url, cloudinary_id, caption`,
           [id, secure_url, public_id, caption]
         );
         uploadedImages.push(imgResult.rows[0]);
-      } catch (imgErr) {
-        console.error('Image upload error during update:', imgErr);
       }
-    }
 
-    // Update edit trail history
-    let newEditedByIds = report.edited_by_ids || [];
-    if (report.manager_id !== req.user.id && !newEditedByIds.includes(req.user.id)) {
-      newEditedByIds = [...newEditedByIds, req.user.id];
-    }
+      // Update edit trail history
+      let newEditedByIds = report.edited_by_ids || [];
+      if (report.manager_id !== req.user.id && !newEditedByIds.includes(req.user.id)) {
+        newEditedByIds = [...newEditedByIds, req.user.id];
+      }
 
-    // Defaults for text fields
-    const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
-    const finalClientPhone = client_phone?.trim() || null;
-    const finalAmount = amount ? parseFloat(amount) : 0;
-    const finalReportDate = report_date || new Date().toISOString().split('T')[0];
-    const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
-    const finalNextReportDate = next_report_date || null;
+      // Defaults for text fields
+      const finalClientName = toTitleCase(client_name?.trim() || 'Unnamed Client');
+      const finalClientPhone = client_phone?.trim() || null;
+      const finalAmount = amount ? parseFloat(amount) : 0;
+      const finalReportDate = report_date || new Date().toISOString().split('T')[0];
+      const finalIsGreen = req.body.is_green === 'false' || req.body.is_green === false ? false : true;
+      const finalNextReportDate = next_report_date || null;
 
-    // Update report
-    await pool.query(
-      `UPDATE reports
+      // Update report
+      await client.query(
+        `UPDATE reports
        SET client_name = $1,
            client_phone = $2,
            amount = $3,
@@ -428,26 +463,48 @@ async function updateReport(req, res) {
            is_green = $9,
            next_report_date = $10
        WHERE id = $11`,
-      [
-        finalClientName,
-        finalClientPhone,
-        finalAmount,
-        note?.trim() || null,
-        short_desc?.trim() || null,
-        finalReportDate,
-        req.user.id,
-        newEditedByIds,
-        finalIsGreen,
-        finalNextReportDate,
-        id,
-      ]
-    );
+        [
+          finalClientName,
+          finalClientPhone,
+          finalAmount,
+          note?.trim() || null,
+          short_desc?.trim() || null,
+          finalReportDate,
+          req.user.id,
+          newEditedByIds,
+          finalIsGreen,
+          finalNextReportDate,
+          id,
+        ]
+      );
 
-    return res.status(200).json({ message: 'Report updated successfully.' });
-  } catch (err) {
-    console.error('updateReport error:', err);
-    return res.status(500).json({ message: 'Server error.' });
+      await client.query('COMMIT');
+
+      // Only delete from Cloudinary after successful DB commit
+      for (const cloudinaryId of cloudinaryIdsToDelete) {
+        try {
+          await deleteFromCloudinary(cloudinaryId);
+        } catch (delErr) {
+          console.error('Failed to delete image from Cloudinary:', cloudinaryId, delErr);
+        }
+      }
+
+      return res.status(200).json({ message: 'Report updated successfully.' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      // Clean up newly uploaded images from Cloudinary on failure
+      for (const img of uploadedImages) {
+        try {
+          await deleteFromCloudinary(img.cloudinary_id);
+        } catch (delErr) {
+          console.error('Failed to clean up Cloudinary image during update rollback:', img.cloudinary_id, delErr);
+        }
+      }
+      console.error('updateReport error:', err);
+      return res.status(500).json({ message: err.message || 'Server error.' });
+    } finally {
+      client.release();
+    }
   }
-}
 
-module.exports = { getReports, getClients, getReportById, createReport, updateReport };
+  module.exports = { getReports, getClients, getReportById, createReport, updateReport };
