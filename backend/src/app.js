@@ -9,7 +9,6 @@ const managersRoutes = require('./routes/managers');
 const errorHandler = require('./middleware/errorHandler');
 
 const runMigration = require('./config/migrate');
-const seedBoss = require('./utils/seed');
 
 const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 const app = express();
@@ -78,13 +77,8 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    // Run DB migration and seed boss
+    // Run DB migration
     await runMigration();
-    
-    // Only seed boss in development if credentials are provided
-    if (!isProd && process.env.BOSS_EMAIL && process.env.BOSS_PASSWORD) {
-      await seedBoss();
-    }
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
