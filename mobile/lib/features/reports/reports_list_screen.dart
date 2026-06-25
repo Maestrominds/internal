@@ -9,6 +9,8 @@ import 'reports_provider.dart';
 import 'report_detail_screen.dart';
 import 'add_report_screen.dart';
 import '../../core/api_service.dart';
+import 'managers_list_screen.dart';
+import 'audit_logs_screen.dart';
 
 String formatINR(double amount) {
   final formatter = NumberFormat.currency(
@@ -285,9 +287,41 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
             onSelected: (v) {
               if (v == 'logout') {
                 ref.read(authProvider.notifier).logout();
+              } else if (v == 'managers') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const ManagersListScreen()),
+                );
+              } else if (v == 'audit') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const AuditLogsScreen()),
+                );
               }
             },
             itemBuilder: (_) => [
+              if (user?.role == 'boss')
+                const PopupMenuItem(
+                  value: 'managers',
+                  child: Row(
+                    children: [
+                      Icon(Icons.people_outline, size: 18, color: AppTheme.textSecondary),
+                      SizedBox(width: 10),
+                      Text('Manage Managers'),
+                    ],
+                  ),
+                ),
+              if (user?.role == 'boss')
+                const PopupMenuItem(
+                  value: 'audit',
+                  child: Row(
+                    children: [
+                      Icon(Icons.history_edu_outlined, size: 18, color: AppTheme.textSecondary),
+                      SizedBox(width: 10),
+                      Text('Audit Logs'),
+                    ],
+                  ),
+                ),
               const PopupMenuItem(
                 value: 'logout',
                 child: Row(
@@ -503,6 +537,15 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                           firstReport = sortedReports.first;
                         }
 
+                        // Compute cumulative outstanding sums
+                        final reversed = List<ReportItem>.from(filteredReports).reversed.toList();
+                        double runningSum = 0.0;
+                        final Map<String, double> runningSumsMap = {};
+                        for (final r in reversed) {
+                          runningSum = r.isGreen ? runningSum + r.amount : runningSum - r.amount;
+                          runningSumsMap[r.id] = runningSum;
+                        }
+
                         Widget content;
                         if (filteredReports.isEmpty) {
                           content = Center(
@@ -518,17 +561,67 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                             ),
                           );
                         } else {
-                          content = ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: filteredReports.length,
-                            itemBuilder: (context, index) {
-                              final r = filteredReports[index];
-                              return _ReportCard(
-                                report: r,
-                                onTap: () => _handleRowClick(context, r),
-                                onViewImages: () => _handleViewImages(context, r.id),
-                              );
-                            },
+                          content = SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Container(
+                              margin: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppTheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppTheme.surface2),
+                              ),
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.all(AppTheme.surface2),
+                                showCheckboxColumn: false,
+                                columns: const [
+                                  DataColumn(label: Text('Created / Edited By', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                  DataColumn(label: Text('Uploaded Date', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                  DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                  DataColumn(label: Text('Net Outstanding', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                  DataColumn(label: Text('Images', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                ],
+                                rows: filteredReports.map((r) {
+                                  final double runningSumAtReport = runningSumsMap[r.id] ?? 0.0;
+                                  return DataRow(
+                                    onSelectChanged: (_) => _handleRowClick(context, r),
+                                    cells: [
+                                      DataCell(Text(r.managerName, style: const TextStyle(fontWeight: FontWeight.w500))),
+                                      DataCell(Text(formatDate(r.reportDate))),
+                                      DataCell(
+                                        Text(
+                                          '${r.isGreen ? "+" : "-"} ${formatINR(r.amount)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: r.isGreen ? Colors.green.shade600 : Colors.red.shade600,
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        Text(
+                                          '${runningSumAtReport >= 0 ? "+" : "-"} ${formatINR(runningSumAtReport.abs())}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: runningSumAtReport >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+                                          ),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        r.imageCount > 0
+                                            ? OutlinedButton(
+                                                onPressed: () => _handleViewImages(context, r.id),
+                                                style: OutlinedButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                  side: const BorderSide(color: AppTheme.accent500),
+                                                ),
+                                                child: Text('View (${r.imageCount})'),
+                                              )
+                                            : const Text('No images', style: TextStyle(color: AppTheme.textMuted)),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           );
                         }
 
@@ -556,13 +649,31 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    _selectedClient!.clientName,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                                    textBaseline: TextBaseline.alphabetic,
+                                    children: [
+                                      Text(
+                                        _selectedClient!.clientName,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      if (_selectedClient!.clientBusinessName != null &&
+                                          _selectedClient!.clientBusinessName!.isNotEmpty) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _selectedClient!.clientBusinessName!,
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   if (_selectedClient!.clientPhone != null) ...[
                                     const SizedBox(height: 4),
@@ -572,27 +683,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                     ),
                                   ],
                                   const SizedBox(height: 16),
-                                  // Net Outstanding at the left-top corner position
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'NET OUTSTANDING',
-                                        style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
-                                        style: TextStyle(
-                                          color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  // 1st Report Amt and Started Date aligned in the same line
+                                  // Received Amt and Started Date aligned in the same line
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
@@ -628,6 +719,49 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                           const SizedBox(height: 4),
                                           Text(
                                             startedDate,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Net Outstanding and Last Report date aligned in the same line
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'NET OUTSTANDING',
+                                            style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${totalAmount >= 0 ? "+" : ""}${formatINR(totalAmount)}',
+                                            style: TextStyle(
+                                              color: totalAmount >= 0 ? Colors.greenAccent : Colors.redAccent,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'LAST REPORT',
+                                            style: TextStyle(color: Colors.white60, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            reports.isNotEmpty ? formatDate(reports.first.reportDate) : '—',
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 14,

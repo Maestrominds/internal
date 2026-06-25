@@ -9,6 +9,7 @@ const {
   createReport,
   updateReport,
 } = require('../controllers/reportsController');
+const { getClientExcel, getClientLedgerPdf } = require('../controllers/exportController');
 
 // Multer — memory storage, max 5 files, 3MB each
 const upload = multer({
@@ -28,6 +29,12 @@ router.get('/', authenticate, getReports);
 
 // GET /api/reports/clients — get unique client grouping list
 router.get('/clients', authenticate, getClients);
+
+// GET /api/reports/export — download Excel for a client
+router.get('/export', authenticate, getClientExcel);
+
+// GET /api/reports/ledger-pdf — download PDF ledger for a client
+router.get('/ledger-pdf', authenticate, getClientLedgerPdf);
 
 // GET /api/reports/:id
 router.get('/:id', authenticate, getReportById);

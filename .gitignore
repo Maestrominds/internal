@@ -53,3 +53,5 @@ mobile/android/local.properties
 mobile/android/.gradle/
 mobile/app.*.symbols
 mobile/app.*.map.json
+
+.md

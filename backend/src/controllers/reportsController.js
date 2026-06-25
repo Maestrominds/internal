@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { compressAndUpload, deleteFromCloudinary } = require('../utils/imageProcessor');
+const { logAction } = require('../utils/auditLogger');
 
 function toTitleCase(str) {
   if (!str) return '';
@@ -19,7 +20,7 @@ async function getReports(req, res) {
     const limit = parseInt(req.query.limit, 10);
 
     let query = `
-      SELECT r.id, r.client_name, r.client_phone, r.amount, r.report_date, r.is_green, r.short_desc, r.note, r.next_report_date,
+      SELECT r.id, r.client_name, r.client_phone, r.client_business_name, r.amount, r.report_date, r.is_green, r.short_desc, r.note, r.next_report_date,
              u.name AS manager_name, u.role AS manager_role, u.id AS manager_id,
              (SELECT COUNT(*)::int FROM report_images WHERE report_id = r.id) AS image_count,
              COUNT(*) OVER()::int AS total_count
@@ -44,7 +45,7 @@ async function getReports(req, res) {
     // Search filter (searches client_name, client_phone, or manager name)
     if (search && search.trim()) {
       const term = `%${search.trim()}%`;
-      conditions.push(`(r.client_name ILIKE $${params.length + 1} OR r.client_phone ILIKE $${params.length + 1} OR u.name ILIKE $${params.length + 1})`);
+      conditions.push(`(r.client_name ILIKE $${params.length + 1} OR r.client_phone ILIKE $${params.length + 1} OR r.client_business_name ILIKE $${params.length + 1} OR u.name ILIKE $${params.length + 1})`);
       params.push(term);
     }
 
@@ -82,7 +83,7 @@ async function getClients(req, res) {
     let query, params;
 
     query = `
-      SELECT r.client_name, r.client_phone
+      SELECT r.client_name, r.client_phone, r.client_business_name
       FROM reports r
       JOIN users u ON r.manager_id = u.id
     `;
@@ -97,13 +98,14 @@ async function getClients(req, res) {
     for (const row of rows) {
       const phone = row.client_phone ? row.client_phone.trim() : null;
       const name = row.client_name ? toTitleCase(row.client_name.trim()) : '';
+      const businessName = row.client_business_name ? row.client_business_name.trim() : '';
 
       if (phone) {
         if (!clientsMap[phone] || (name && !clientsMap[phone].client_name)) {
-          clientsMap[phone] = { client_name: name, client_phone: phone };
+          clientsMap[phone] = { client_name: name, client_phone: phone, client_business_name: businessName };
         }
       } else if (name) {
-        nameOnlyClients.add(name);
+        nameOnlyClients.add(JSON.stringify({ client_name: name, client_business_name: businessName }));
       }
     }
 
@@ -112,11 +114,13 @@ async function getClients(req, res) {
       clientsList.push(clientsMap[phone]);
     }
     const existingNames = new Set(
-      Object.values(clientsMap).map(c => c.client_name.toLowerCase())
+      Object.values(clientsMap).map(c => `${c.client_name.toLowerCase()}|${(c.client_business_name || '').toLowerCase()}`)
     );
-    for (const name of nameOnlyClients) {
-      if (!existingNames.has(name.toLowerCase())) {
-        clientsList.push({ client_name: name, client_phone: null });
+    for (const nameJson of nameOnlyClients) {
+      const parsed = JSON.parse(nameJson);
+      const key = `${parsed.client_name.toLowerCase()}|${(parsed.client_business_name || '').toLowerCase()}`;
+      if (!existingNames.has(key)) {
+        clientsList.push({ client_name: parsed.client_name, client_phone: null, client_business_name: parsed.client_business_name });
       }
     }
 
@@ -190,7 +194,7 @@ async function getReportById(req, res) {
 // POST /api/reports (Boss & Manager)
 async function createReport(req, res) {
   try {
-    const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
+    const { client_name, client_phone, client_business_name, amount, note, short_desc, report_date, next_report_date } = req.body;
     const files = req.files || [];
 
     // All fields are optional except caption validation when images are uploaded
@@ -199,6 +203,9 @@ async function createReport(req, res) {
     }
     if (client_phone && client_phone.length > 15) {
       return res.status(400).json({ message: 'Client phone must be 15 characters or less.' });
+    }
+    if (client_business_name && client_business_name.length > 100) {
+      return res.status(400).json({ message: 'Client business name must be 100 characters or less.' });
     }
     if (note && note.length > 20) {
       return res.status(400).json({ message: 'Note must be 20 characters or less.' });
@@ -247,13 +254,14 @@ async function createReport(req, res) {
 
       // Insert report
       const reportResult = await client.query(
-        `INSERT INTO reports (manager_id, client_name, client_phone, amount, note, short_desc, report_date, is_green, next_report_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO reports (manager_id, client_name, client_phone, client_business_name, amount, note, short_desc, report_date, is_green, next_report_date)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
           req.user.id,
           finalClientName,
           finalClientPhone,
+          client_business_name?.trim() || null,
           finalAmount,
           note?.trim() || null,
           short_desc?.trim() || null,
@@ -284,6 +292,17 @@ async function createReport(req, res) {
       }
 
       await client.query('COMMIT');
+
+      // Audit log
+      await logAction({
+        userId: req.user.id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: 'CREATE_REPORT',
+        entityType: 'report',
+        entityId: report.id,
+        description: `Created report for client: ${finalClientName}`,
+      });
 
       return res.status(201).json({
         message: 'Report created successfully.',
@@ -317,7 +336,7 @@ async function updateReport(req, res) {
     const cloudinaryIdsToDelete = [];
     try {
       const { id } = req.params;
-      const { client_name, client_phone, amount, note, short_desc, report_date, next_report_date } = req.body;
+      const { client_name, client_phone, client_business_name, amount, note, short_desc, report_date, next_report_date } = req.body;
       const files = req.files || [];
 
       // Find original report and get submitter role
@@ -342,6 +361,10 @@ async function updateReport(req, res) {
       if (client_phone && client_phone.length > 15) {
         client.release();
         return res.status(400).json({ message: 'Client phone must be 15 characters or less.' });
+      }
+      if (client_business_name && client_business_name.length > 100) {
+        client.release();
+        return res.status(400).json({ message: 'Client business name must be 100 characters or less.' });
       }
       if (note && note.length > 20) {
         client.release();
@@ -452,20 +475,22 @@ async function updateReport(req, res) {
       // Update report
       await client.query(
         `UPDATE reports
-       SET client_name = $1,
-           client_phone = $2,
-           amount = $3,
-           note = $4,
-           short_desc = $5,
-           report_date = $6,
-           last_edited_by = $7,
-           edited_by_ids = $8,
-           is_green = $9,
-           next_report_date = $10
-       WHERE id = $11`,
+        SET client_name = $1,
+            client_phone = $2,
+            client_business_name = $3,
+            amount = $4,
+            note = $5,
+            short_desc = $6,
+            report_date = $7,
+            last_edited_by = $8,
+            edited_by_ids = $9,
+            is_green = $10,
+            next_report_date = $11
+        WHERE id = $12`,
         [
           finalClientName,
           finalClientPhone,
+          client_business_name?.trim() || null,
           finalAmount,
           note?.trim() || null,
           short_desc?.trim() || null,
@@ -488,6 +513,17 @@ async function updateReport(req, res) {
           console.error('Failed to delete image from Cloudinary:', cloudinaryId, delErr);
         }
       }
+
+      // Audit log
+      await logAction({
+        userId: req.user.id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        action: 'EDIT_REPORT',
+        entityType: 'report',
+        entityId: id,
+        description: `Edited report for client: ${toTitleCase(client_name?.trim() || report.client_name)}`,
+      });
 
       return res.status(200).json({ message: 'Report updated successfully.' });
     } catch (err) {

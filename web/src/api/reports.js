@@ -16,3 +16,10 @@ export const updateReport = (id, formData) =>
   api.put(`/reports/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
+export const exportClientExcel = (params = {}) =>
+  api.get('/reports/export', { params, responseType: 'blob' });
+
+export const downloadLedgerPdf = (params = {}) =>
+  api.get('/reports/ledger-pdf', { params, responseType: 'blob' });
+

@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
+const { logAction } = require('../utils/auditLogger');
 
 // GET /api/managers (Boss only)
 async function getManagers(req, res) {
@@ -77,6 +78,16 @@ async function addManager(req, res) {
       [name.trim(), email.toLowerCase().trim(), hashedPassword]
     );
 
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'ADD_MANAGER',
+      entityType: 'manager',
+      entityId: result.rows[0].id,
+      description: `Added manager: ${name.trim()}`,
+    });
+
     return res.status(201).json({
       message: 'Manager added successfully.',
       manager: result.rows[0],
@@ -109,6 +120,18 @@ async function deleteManager(req, res) {
       `UPDATE users SET is_active = false WHERE id = $1`,
       [id]
     );
+
+    // Find manager name for log
+    const managerName = check.rows[0].name || 'Unknown';
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'DEACTIVATE_MANAGER',
+      entityType: 'manager',
+      entityId: id,
+      description: `Deactivated manager: ${managerName}`,
+    });
 
     return res.status(200).json({ message: 'Manager deleted successfully.' });
   } catch (err) {
@@ -149,6 +172,16 @@ async function resetManagerPassword(req, res) {
       `UPDATE users SET password = $1 WHERE id = $2`,
       [hashedPassword, id]
     );
+
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'RESET_PASSWORD',
+      entityType: 'manager',
+      entityId: id,
+      description: `Reset password for manager: ${check.rows[0].name}`,
+    });
 
     return res.status(200).json({
       message: 'Password reset successfully.',

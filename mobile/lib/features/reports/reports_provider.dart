@@ -6,15 +6,18 @@ import '../../core/api_service.dart';
 class ClientItem {
   final String clientName;
   final String? clientPhone;
+  final String? clientBusinessName;
 
   const ClientItem({
     required this.clientName,
     this.clientPhone,
+    this.clientBusinessName,
   });
 
   factory ClientItem.fromJson(Map<String, dynamic> json) => ClientItem(
     clientName: json['client_name'] ?? '',
     clientPhone: json['client_phone'],
+    clientBusinessName: json['client_business_name'],
   );
 }
 
@@ -42,6 +45,7 @@ class ReportItem {
   final String id;
   final String clientName;
   final String? clientPhone;
+  final String? clientBusinessName;
   final double amount;
   final String reportDate;
   final String managerName;
@@ -55,6 +59,7 @@ class ReportItem {
     required this.id,
     required this.clientName,
     this.clientPhone,
+    this.clientBusinessName,
     required this.amount,
     required this.reportDate,
     required this.managerName,
@@ -69,6 +74,7 @@ class ReportItem {
     id: json['id'] ?? '',
     clientName: json['client_name'] ?? '',
     clientPhone: json['client_phone'],
+    clientBusinessName: json['client_business_name'],
     amount: double.tryParse(json['amount'].toString()) ?? 0,
     reportDate: json['report_date'] ?? '',
     managerName: json['manager_name'] ?? '',
@@ -85,6 +91,7 @@ class ReportDetail {
   final String id;
   final String clientName;
   final String? clientPhone;
+  final String? clientBusinessName;
   final double amount;
   final String reportDate;
   final String managerName;
@@ -103,6 +110,7 @@ class ReportDetail {
     required this.id,
     required this.clientName,
     this.clientPhone,
+    this.clientBusinessName,
     required this.amount,
     required this.reportDate,
     required this.managerName,
@@ -122,6 +130,7 @@ class ReportDetail {
     id: json['id'] ?? '',
     clientName: json['client_name'] ?? '',
     clientPhone: json['client_phone'],
+    clientBusinessName: json['client_business_name'],
     amount: double.tryParse(json['amount'].toString()) ?? 0,
     reportDate: json['report_date'] ?? '',
     managerName: json['manager_name'] ?? '',

@@ -14,9 +14,10 @@ function today() {
   return local.toISOString().split('T')[0];
 }
 
-export default function AddReportModal({ prefilledClientName, prefilledClientPhone, onClose, onSuccess }) {
+export default function AddReportModal({ prefilledClientName, prefilledClientPhone, prefilledClientBusinessName, onClose, onSuccess }) {
   const [clientName, setClientName] = useState(prefilledClientName || '');
   const [clientPhone, setClientPhone] = useState(prefilledClientPhone || '');
+  const [clientBusinessName, setClientBusinessName] = useState(prefilledClientBusinessName || '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [captions, setCaptions] = useState([]);
@@ -75,6 +76,7 @@ export default function AddReportModal({ prefilledClientName, prefilledClientPho
     const formData = new FormData();
     formData.append('client_name', clientName.trim());
     formData.append('client_phone', clientPhone.trim());
+    formData.append('client_business_name', clientBusinessName.trim());
     formData.append('amount', amount);
     formData.append('note', note.trim());
     formData.append('short_desc', shortDesc.trim());
@@ -143,6 +145,25 @@ export default function AddReportModal({ prefilledClientName, prefilledClientPho
                 />
                 <div className={`char-count ${clientPhone.length >= 15 ? 'at-limit' : ''}`}>
                   {clientPhone.length}/15
+                </div>
+              </div>
+            )}
+
+            {/* Client Business Name */}
+            {!prefilledClientName && (
+              <div className="form-group">
+                <label className="form-label" htmlFor="report-business">Client Business Name</label>
+                <input
+                  id="report-business"
+                  className="form-input"
+                  type="text"
+                  placeholder="Enter client business name (optional)"
+                  value={clientBusinessName}
+                  maxLength={100}
+                  onChange={(e) => setClientBusinessName(e.target.value)}
+                />
+                <div className={`char-count ${clientBusinessName.length >= 100 ? 'at-limit' : ''}`}>
+                  {clientBusinessName.length}/100
                 </div>
               </div>
             )}

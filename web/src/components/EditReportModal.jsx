@@ -17,6 +17,7 @@ function today() {
 export default function EditReportModal({ report, onClose, onSuccess }) {
   const [clientName, setClientName] = useState(report.client_name || '');
   const [clientPhone, setClientPhone] = useState(report.client_phone || '');
+  const [clientBusinessName, setClientBusinessName] = useState(report.client_business_name || '');
   const [amount, setAmount] = useState(report.amount || '');
   const [note, setNote] = useState(report.note || '');
   const [shortDesc, setShortDesc] = useState(report.short_desc || '');
@@ -95,6 +96,7 @@ export default function EditReportModal({ report, onClose, onSuccess }) {
     const formData = new FormData();
     formData.append('client_name', clientName.trim());
     formData.append('client_phone', clientPhone.trim());
+    formData.append('client_business_name', clientBusinessName.trim());
     formData.append('amount', amount);
     formData.append('note', note.trim());
     formData.append('short_desc', shortDesc.trim());
@@ -161,6 +163,23 @@ export default function EditReportModal({ report, onClose, onSuccess }) {
               />
               <div className={`char-count ${clientPhone.length >= 15 ? 'at-limit' : ''}`}>
                 {clientPhone.length}/15
+              </div>
+            </div>
+
+            {/* Client Business Name */}
+            <div className="form-group">
+              <label className="form-label" htmlFor="edit-business">Client Business Name</label>
+              <input
+                id="edit-business"
+                className="form-input"
+                type="text"
+                placeholder="Enter client business name (optional)"
+                value={clientBusinessName}
+                maxLength={100}
+                onChange={(e) => setClientBusinessName(e.target.value)}
+              />
+              <div className={`char-count ${clientBusinessName.length >= 100 ? 'at-limit' : ''}`}>
+                {clientBusinessName.length}/100
               </div>
             </div>
 

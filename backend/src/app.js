@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const authRoutes = require('./routes/auth');
 const reportsRoutes = require('./routes/reports');
 const managersRoutes = require('./routes/managers');
+const auditRoutes = require('./routes/audit');
 const errorHandler = require('./middleware/errorHandler');
 
 const runMigration = require('./config/migrate');
@@ -64,6 +65,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/managers', managersRoutes);
+app.use('/api/audit', auditRoutes);
 
 // 404 handler
 app.use((req, res) => {

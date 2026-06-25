@@ -24,6 +24,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
 
   final _clientNameCtrl = TextEditingController();
   final _clientPhoneCtrl = TextEditingController();
+  final _clientBusinessNameCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _shortDescCtrl = TextEditingController();
@@ -50,6 +51,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       final r = widget.editReport!;
       _clientNameCtrl.text = r.clientName == 'Unnamed Client' ? '' : r.clientName;
       _clientPhoneCtrl.text = r.clientPhone ?? '';
+      _clientBusinessNameCtrl.text = r.clientBusinessName ?? '';
       _amountCtrl.text = r.amount == 0 ? '' : r.amount.toString();
       _noteCtrl.text = r.note ?? '';
       _shortDescCtrl.text = r.shortDesc ?? '';
@@ -80,6 +82,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
   void dispose() {
     _clientNameCtrl.dispose();
     _clientPhoneCtrl.dispose();
+    _clientBusinessNameCtrl.dispose();
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     _shortDescCtrl.dispose();
@@ -229,6 +232,7 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
       final Map<String, dynamic> formDataMap = {
         'client_name': _clientNameCtrl.text.trim(),
         'client_phone': _clientPhoneCtrl.text.trim(),
+        'client_business_name': _clientBusinessNameCtrl.text.trim(),
         'amount': finalAmount ?? 0.0,
         'note': _noteCtrl.text.trim(),
         'short_desc': _shortDescCtrl.text.trim(),
@@ -363,6 +367,17 @@ class _AddReportScreenState extends ConsumerState<AddReportScreen> {
                         border: OutlineInputBorder(),
                       ),
                       maxLength: 15,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _clientBusinessNameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Client Business Name',
+                        hintText: 'Enter business name',
+                        prefixIcon: Icon(Icons.business),
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLength: 100,
                     ),
                     const SizedBox(height: 16),
                   ],

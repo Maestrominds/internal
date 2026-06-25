@@ -33,6 +33,7 @@ async function runMigration() {
         edited_by_ids UUID[] DEFAULT '{}',
         is_green BOOLEAN DEFAULT TRUE,
         next_report_date DATE,
+        client_business_name VARCHAR(100),
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -57,8 +58,24 @@ async function runMigration() {
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS edited_by_ids UUID[] DEFAULT '{}';
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_green BOOLEAN DEFAULT TRUE;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS next_report_date DATE;
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS client_business_name VARCHAR(100);
     `);
     console.log('✅ report columns verified');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        user_name VARCHAR(50),
+        user_role VARCHAR(10),
+        action VARCHAR(50) NOT NULL,
+        entity_type VARCHAR(30),
+        entity_id UUID,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('✅ audit_logs table ready');
 
     console.log('✅ Migration complete!');
   } catch (err) {

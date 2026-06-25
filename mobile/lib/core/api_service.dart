@@ -97,4 +97,37 @@ class ApiService {
   Future<Response> updateReport(String id, FormData data) {
     return _dio.put('/reports/$id', data: data);
   }
+
+  // Managers
+  Future<Response> getManagers() {
+    return _dio.get('/managers');
+  }
+
+  Future<Response> addManager({required String name, required String email, required String password}) {
+    return _dio.post('/managers', data: {
+      'name': name,
+      'email': email,
+      'password': password,
+    });
+  }
+
+  Future<Response> deleteManager(String id) {
+    return _dio.delete('/managers/$id');
+  }
+
+  Future<Response> resetManagerPassword(String id, String password) {
+    return _dio.post('/managers/$id/reset-password', data: {
+      'password': password,
+    });
+  }
+
+  // Audit Logs (Boss only)
+  Future<Response> getAuditLogs({int page = 1, int limit = 20, String? action}) {
+    return _dio.get('/audit', queryParameters: {
+      'page': page,
+      'limit': limit,
+      if (action != null && action.isNotEmpty) 'action': action,
+    });
+  }
 }
+

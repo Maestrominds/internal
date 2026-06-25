@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getReports, getClients, getReportById } from '../api/reports';
+import { getReports, getClients, getReportById, exportClientExcel, downloadLedgerPdf } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { formatINR, formatDate } from '../utils/format';
 import AddReportModal from '../components/AddReportModal';
@@ -41,8 +41,12 @@ export default function ReportListPage() {
   const clientPhoneParam = searchParams.get('client_phone');
 
   const selectedClient = useMemo(() => {
-    return clientNameParam ? { client_name: clientNameParam, client_phone: clientPhoneParam } : null;
-  }, [clientNameParam, clientPhoneParam]);
+    if (!clientNameParam) return null;
+    const match = clients.find(
+      (c) => c.client_name === clientNameParam && (c.client_phone || '') === (clientPhoneParam || '')
+    );
+    return match || { client_name: clientNameParam, client_phone: clientPhoneParam };
+  }, [clientNameParam, clientPhoneParam, clients]);
 
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState('');
@@ -53,6 +57,45 @@ export default function ReportListPage() {
   const [loadingReportDetails, setLoadingReportDetails] = useState(false);
 
   const isBoss = user?.role === 'boss';
+
+  // ── Download helpers ──
+  const handleExportExcel = async (client, e) => {
+    if (e) e.stopPropagation();
+    const toastId = toast.loading('Preparing Excel...');
+    try {
+      const params = { client_name: client.client_name };
+      if (client.client_phone) params.client_phone = client.client_phone;
+      const res = await exportClientExcel(params);
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${client.client_name.replace(/\s+/g, '_')}_ledger.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel downloaded!', { id: toastId });
+    } catch {
+      toast.error('Failed to download Excel', { id: toastId });
+    }
+  };
+
+  const handleDownloadPdf = async (client, e) => {
+    if (e) e.stopPropagation();
+    const toastId = toast.loading('Generating PDF...');
+    try {
+      const params = { client_name: client.client_name };
+      if (client.client_phone) params.client_phone = client.client_phone;
+      const res = await downloadLedgerPdf(params);
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${client.client_name.replace(/\s+/g, '_')}_ledger.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF downloaded!', { id: toastId });
+    } catch {
+      toast.error('Failed to download PDF', { id: toastId });
+    }
+  };
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
@@ -171,6 +214,29 @@ export default function ReportListPage() {
   const netOutstandingIsGreen = netOutstanding >= 0;
   const formattedNetOutstanding = `${netOutstandingIsGreen ? '+' : '-'}${formatINR(Math.abs(netOutstanding))}`;
 
+  const latestReport = useMemo(() => {
+    if (reports.length === 0) return null;
+    const sorted = [...reports].sort((a, b) => new Date(b.report_date) - new Date(a.report_date));
+    return sorted[0];
+  }, [reports]);
+
+  const latestReportDate = latestReport ? formatDate(latestReport.report_date) : '—';
+
+  const reportsWithCumulativeOutstanding = useMemo(() => {
+    const reversed = [...filteredReports].reverse();
+    let runningSum = 0;
+    const runningSumsMap = {};
+    for (const r of reversed) {
+      const amt = parseFloat(r.amount) || 0;
+      runningSum = r.is_green ? runningSum + amt : runningSum - amt;
+      runningSumsMap[r.id] = runningSum;
+    }
+    return filteredReports.map(r => ({
+      ...r,
+      cumulativeOutstanding: runningSumsMap[r.id] || 0
+    }));
+  }, [filteredReports]);
+
   return (
     <Layout>
       <div className="page-header">
@@ -243,14 +309,45 @@ export default function ReportListPage() {
                 >
                   <div className="report-card-left">
                     <div className="report-card-name">{c.client_name}</div>
+                    {c.client_business_name && (
+                      <div className="report-card-meta" style={{ marginTop: '2px', fontWeight: 500, color: 'var(--accent-500)' }}>
+                        {c.client_business_name}
+                      </div>
+                    )}
                     {c.client_phone && (
                       <div className="report-card-meta" style={{ marginTop: '4px' }}>
                         📞 {c.client_phone}
                       </div>
                     )}
                   </div>
-                  <div className="report-card-amount" style={{ fontSize: '0.85rem', color: 'var(--accent-500)', fontWeight: 'bold' }}>
-                    View Reports →
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    <div className="report-card-amount" style={{ fontSize: '0.85rem', color: 'var(--accent-500)', fontWeight: 'bold' }}>
+                      View Reports →
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                      <button
+                        title="Download Excel"
+                        onClick={(e) => handleExportExcel(c, e)}
+                        style={{
+                          padding: '4px 10px', fontSize: '0.72rem', fontWeight: 600,
+                          background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0',
+                          borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                        }}
+                      >
+                        📥 Excel
+                      </button>
+                      <button
+                        title="Download PDF Ledger"
+                        onClick={(e) => handleDownloadPdf(c, e)}
+                        style={{
+                          padding: '4px 10px', fontSize: '0.72rem', fontWeight: 600,
+                          background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca',
+                          borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                        }}
+                      >
+                        📄 PDF
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -277,25 +374,52 @@ export default function ReportListPage() {
                 marginBottom: '24px',
                 boxShadow: '0 4px 12px rgba(37,99,235,0.15)'
               }}>
-                <h3 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700 }}>{selectedClient.client_name}</h3>
-                {selectedClient.client_phone && (
-                  <p style={{ margin: '4px 0 16px 0', opacity: 0.85, fontSize: '0.9rem' }}>📞 {selectedClient.client_phone}</p>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {/* Net Outstanding at the left-top corner position */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Outstanding</span>
-                    <h4 style={{
-                      margin: 0,
-                      fontSize: '1.6rem',
-                      fontWeight: 800,
-                      color: netOutstandingIsGreen ? '#10b981' : '#f87171'
-                    }}>
-                      {formattedNetOutstanding}
-                    </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'baseline', gap: '16px', flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700 }}>{selectedClient.client_name}</h3>
+                      {selectedClient.client_business_name && (
+                        <span style={{ fontSize: '1.2rem', opacity: 0.9, fontWeight: 500 }}>
+                          {selectedClient.client_business_name}
+                        </span>
+                      )}
+                    </div>
+                    {selectedClient.client_phone && (
+                      <p style={{ margin: '8px 0 0 0', opacity: 0.85, fontSize: '0.9rem' }}>📞 {selectedClient.client_phone}</p>
+                    )}
                   </div>
-
-                  {/* 1st Report Amt and Started Date aligned in the same line */}
+                  {/* Download Buttons in blue header */}
+                  <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      onClick={(e) => handleExportExcel(selectedClient, e)}
+                      style={{
+                        padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600,
+                        background: 'rgba(255,255,255,0.15)', color: '#fff',
+                        border: '1.5px solid rgba(255,255,255,0.4)',
+                        borderRadius: '8px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      📥 Excel
+                    </button>
+                    <button
+                      onClick={(e) => handleDownloadPdf(selectedClient, e)}
+                      style={{
+                        padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600,
+                        background: 'rgba(255,255,255,0.15)', color: '#fff',
+                        border: '1.5px solid rgba(255,255,255,0.4)',
+                        borderRadius: '8px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        backdropFilter: 'blur(4px)',
+                      }}
+                    >
+                      📄 PDF
+                    </button>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                  {/* Received Amt and Started Date aligned in the same line */}
                   <div style={{ display: 'flex', gap: '60px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>AMT RECEIVED</span>
@@ -311,7 +435,28 @@ export default function ReportListPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Started Date</span>
                       <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>
-                        {reports.length > 0 ? formatDate(new Date(Math.min(...reports.map(r => new Date(r.report_date).getTime()))).toISOString().split('T')[0]) : '-'}
+                        {firstReport ? formatDate(firstReport.report_date) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Net Outstanding and Last Report date aligned in the same line */}
+                  <div style={{ display: 'flex', gap: '60px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Net Outstanding</span>
+                      <h4 style={{
+                        margin: 0,
+                        fontSize: '1.4rem',
+                        fontWeight: 800,
+                        color: netOutstandingIsGreen ? '#10b981' : '#f87171'
+                      }}>
+                        {formattedNetOutstanding}
+                      </h4>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Last Report</span>
+                      <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>
+                        {latestReportDate}
                       </p>
                     </div>
                   </div>
@@ -324,14 +469,14 @@ export default function ReportListPage() {
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--border-color, #e5e7eb)', backgroundColor: 'var(--table-header-bg, #f9fafb)' }}>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Created / Edited By</th>
-                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Next Report Date</th>
-                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Description</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Uploaded Date</th>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Amount</th>
+                      <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Net Outstanding</th>
                       <th style={{ padding: '16px', fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Images</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredReports.map((r) => (
+                    {reportsWithCumulativeOutstanding.map((r) => (
                       <tr
                         key={r.id}
                         onClick={() => setSelectedReportForAction(r)}
@@ -344,10 +489,7 @@ export default function ReportListPage() {
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 500 }}>{r.manager_name}</td>
-                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{r.next_report_date ? formatDate(r.next_report_date) : '—'}</td>
-                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {r.note ? <strong>[{r.note}] </strong> : ''}{r.short_desc || 'No description'}
-                        </td>
+                        <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{formatDate(r.report_date)}</td>
                         <td style={{
                           padding: '16px',
                           fontSize: '0.9rem',
@@ -355,6 +497,14 @@ export default function ReportListPage() {
                           color: r.is_green ? '#10b981' : '#ef4444'
                         }}>
                           {r.is_green ? '+' : '-'} {formatINR(r.amount)}
+                        </td>
+                        <td style={{
+                          padding: '16px',
+                          fontSize: '0.9rem',
+                          fontWeight: 700,
+                          color: r.cumulativeOutstanding >= 0 ? '#10b981' : '#ef4444'
+                        }}>
+                          {r.cumulativeOutstanding >= 0 ? '+' : '-'} {formatINR(Math.abs(r.cumulativeOutstanding))}
                         </td>
                         <td style={{ padding: '16px', textAlign: 'center' }}>
                           {r.image_count > 0 ? (
@@ -412,6 +562,7 @@ export default function ReportListPage() {
         <AddReportModal
           prefilledClientName={selectedClient?.client_name}
           prefilledClientPhone={selectedClient?.client_phone}
+          prefilledClientBusinessName={selectedClient?.client_business_name}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);

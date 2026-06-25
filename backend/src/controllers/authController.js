@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const { logAction } = require('../utils/auditLogger');
 
 const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 
@@ -48,6 +49,16 @@ async function login(req, res) {
     );
 
     res.cookie('token', token, COOKIE_OPTIONS);
+
+    // Audit log
+    await logAction({
+      userId: user.id,
+      userName: user.name,
+      userRole: user.role,
+      action: 'LOGIN',
+      entityType: 'auth',
+      description: `${user.name} (${user.role}) logged in`,
+    });
 
     return res.status(200).json({
       message: 'Login successful.',

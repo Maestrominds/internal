@@ -7,6 +7,7 @@ import ReportListPage from './pages/ReportListPage';
 import ReportDetailsPage from './pages/ReportDetailsPage';
 import ManagerListPage from './pages/ManagerListPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import AuditLogsPage from './pages/AuditLogsPage';
 import './index.css';
 
 export default function App() {
@@ -65,6 +66,16 @@ export default function App() {
             element={
               <ProtectedRoute role="boss">
                 <ResetPasswordPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Audit Logs — boss only */}
+          <Route
+            path="/dashboard/audit"
+            element={
+              <ProtectedRoute role="boss">
+                <AuditLogsPage />
               </ProtectedRoute>
             }
           />
