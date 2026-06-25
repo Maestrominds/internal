@@ -2,6 +2,9 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 require('dotenv').config();
 
+const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+
+
 /**
  * Verifies JWT from HTTP-only cookie.
  * Also checks user is_active (for deleted managers).
@@ -43,7 +46,11 @@ async function authenticate(req, res, next) {
 
     if (!user.is_active) {
       // Clear the cookie and force logout
-      res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
+      });
       return res.status(401).json({ message: 'Account has been deactivated.' });
     }
 

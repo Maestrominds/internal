@@ -1,6 +1,5 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
-const { generatePassword } = require('../utils/passwordGenerator');
 
 // GET /api/managers (Boss only)
 async function getManagers(req, res) {

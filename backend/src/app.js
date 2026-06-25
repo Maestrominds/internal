@@ -11,7 +11,12 @@ const errorHandler = require('./middleware/errorHandler');
 const runMigration = require('./config/migrate');
 const seedBoss = require('./utils/seed');
 
+const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
 const app = express();
+
+// Trust proxy for secure cookies in production (Vercel)
+app.set('trust proxy', 1);
+
 
 // CORS — allow React frontend + Flutter mobile (no strict origin for Flutter)
 app.use(
@@ -75,12 +80,18 @@ async function startServer() {
   try {
     // Run DB migration and seed boss
     await runMigration();
-    await seedBoss();
+    
+    // Only seed boss in development if credentials are provided
+    if (!isProd && process.env.BOSS_EMAIL && process.env.BOSS_PASSWORD) {
+      await seedBoss();
+    }
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`   Environment: ${process.env.NODE_ENV}`);
-      console.log(`   Boss: ${process.env.BOSS_EMAIL} / ${process.env.BOSS_PASSWORD}`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+      if (!isProd && process.env.BOSS_EMAIL) {
+        console.log(`   Boss: ${process.env.BOSS_EMAIL} / ${process.env.BOSS_PASSWORD}`);
+      }
     });
   } catch (err) {
     console.error('❌ Failed to start server:', err);
