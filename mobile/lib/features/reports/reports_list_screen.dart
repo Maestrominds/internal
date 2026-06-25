@@ -564,65 +564,70 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                             ),
                           );
                         } else {
-                          content = SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Container(
-                              margin: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppTheme.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.surface2),
-                              ),
-                              child: DataTable(
-                                headingRowColor: WidgetStateProperty.all(AppTheme.surface2),
-                                showCheckboxColumn: false,
-                                columns: const [
-                                  DataColumn(label: Text('Created / Edited By', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
-                                  DataColumn(label: Text('Uploaded Date', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
-                                  DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
-                                  DataColumn(label: Text('Net Outstanding', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
-                                  DataColumn(label: Text('Images', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
-                                ],
-                                rows: filteredReports.map((r) {
-                                  final double runningSumAtReport = runningSumsMap[r.id] ?? 0.0;
-                                  return DataRow(
-                                    onSelectChanged: (_) => _handleRowClick(context, r),
-                                    cells: [
-                                      DataCell(Text(r.managerName, style: const TextStyle(fontWeight: FontWeight.w500))),
-                                      DataCell(Text(formatDate(r.reportDate))),
-                                      DataCell(
-                                        Text(
-                                          '${r.isGreen ? "+" : "-"} ${formatINR(r.amount)}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: r.isGreen ? Colors.green.shade600 : Colors.red.shade600,
+                          content = InteractiveViewer(
+                            constrained: false,
+                            minScale: 0.5,
+                            maxScale: 2.5,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 100),
+                              child: Container(
+                                margin: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: AppTheme.surface2),
+                                ),
+                                child: DataTable(
+                                  headingRowColor: WidgetStateProperty.all(AppTheme.surface2),
+                                  showCheckboxColumn: false,
+                                  columns: const [
+                                    DataColumn(label: Text('Created / Edited By', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                    DataColumn(label: Text('Uploaded Date', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                    DataColumn(label: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                    DataColumn(label: Text('Net Outstanding', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                    DataColumn(label: Text('Images', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textSecondary))),
+                                  ],
+                                  rows: filteredReports.map((r) {
+                                    final double runningSumAtReport = runningSumsMap[r.id] ?? 0.0;
+                                    return DataRow(
+                                      onSelectChanged: (_) => _handleRowClick(context, r),
+                                      cells: [
+                                        DataCell(Text(r.managerName, style: const TextStyle(fontWeight: FontWeight.w500))),
+                                        DataCell(Text(formatDate(r.reportDate))),
+                                        DataCell(
+                                          Text(
+                                            '${r.isGreen ? "+" : "-"} ${formatINR(r.amount)}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: r.isGreen ? Colors.green.shade600 : Colors.red.shade600,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      DataCell(
-                                        Text(
-                                          '${runningSumAtReport >= 0 ? "+" : "-"} ${formatINR(runningSumAtReport.abs())}',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: runningSumAtReport >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+                                        DataCell(
+                                          Text(
+                                            '${runningSumAtReport >= 0 ? "+" : "-"} ${formatINR(runningSumAtReport.abs())}',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: runningSumAtReport >= 0 ? Colors.green.shade600 : Colors.red.shade600,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      DataCell(
-                                        r.imageCount > 0
-                                            ? OutlinedButton(
-                                                onPressed: () => _handleViewImages(context, r.id),
-                                                style: OutlinedButton.styleFrom(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                  side: const BorderSide(color: AppTheme.accent500),
-                                                ),
-                                                child: Text('View (${r.imageCount})'),
-                                              )
-                                            : const Text('No images', style: TextStyle(color: AppTheme.textMuted)),
-                                      ),
-                                    ],
-                                  );
-                                }).toList(),
+                                        DataCell(
+                                          r.imageCount > 0
+                                              ? OutlinedButton(
+                                                  onPressed: () => _handleViewImages(context, r.id),
+                                                  style: OutlinedButton.styleFrom(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                    side: const BorderSide(color: AppTheme.accent500),
+                                                  ),
+                                                  child: Text('View (${r.imageCount})'),
+                                                )
+                                              : const Text('No images', style: TextStyle(color: AppTheme.textMuted)),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                               ),
                             ),
                           );

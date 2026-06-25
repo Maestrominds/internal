@@ -307,13 +307,26 @@ class _ManagersListScreenState extends ConsumerState<ManagersListScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary600),
                           ),
                         ),
-                        title: Text(m.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                        title: Text(
+                          m.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(m.email, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                            Text(
+                              m.email,
+                              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             const SizedBox(height: 4),
-                            Row(
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -331,7 +344,6 @@ class _ManagersListScreenState extends ConsumerState<ManagersListScreen> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                                 Text(
                                   'Added: ${_formatDate(m.createdAt)}',
                                   style: const TextStyle(color: AppTheme.textMuted, fontSize: 11),
