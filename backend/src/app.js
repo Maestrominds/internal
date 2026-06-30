@@ -33,10 +33,8 @@ app.use(
       const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
       const allowed = [
         clientUrl,
-        'https://internal-tool-phi.vercel.app',
-        'https://internal-tool-x32g.vercel.app',
+        'https://internal-client.vercel.app',
         'http://localhost:5173',
-        'http://localhost:5174',
       ].filter(Boolean);
 
       if (allowed.includes(normalizedOrigin)) {
