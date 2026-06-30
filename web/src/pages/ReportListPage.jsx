@@ -201,7 +201,11 @@ export default function ReportListPage() {
       }
       await deleteClientReports(params);
       toast.success('Client and all reports deleted successfully!', { id: toastId });
-      fetchClients();
+      if (selectedClient) {
+        handleBackToClients();
+      } else {
+        fetchClients();
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete client', { id: toastId });
     }
@@ -474,6 +478,20 @@ export default function ReportListPage() {
                     >
                       📄 PDF
                     </button>
+                    {isBoss && (
+                      <button
+                        onClick={() => handleDeleteClient(selectedClient)}
+                        style={{
+                          padding: '8px 16px', fontSize: '0.82rem', fontWeight: 600,
+                          background: '#fee2e2', color: '#dc2626',
+                          border: '1.5px solid #fecaca',
+                          borderRadius: '8px', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                        }}
+                      >
+                        🗑️ Delete Client
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
@@ -682,6 +700,30 @@ export default function ReportListPage() {
                     onClick={() => handleDeleteReport(selectedReportForAction.id)}
                   >
                     🗑️ Delete Transaction
+                  </button>
+                )}
+                {isBoss && (
+                  <button
+                    className="btn btn-danger"
+                    style={{
+                      width: '100%',
+                      cursor: 'pointer',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#b91c1c'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = '#dc2626'}
+                    onClick={() => {
+                      setSelectedReportForAction(null);
+                      handleDeleteClient(selectedClient || { client_name: selectedReportForAction.client_name, client_phone: selectedReportForAction.client_phone });
+                    }}
+                  >
+                    🗑️ Delete Client
                   </button>
                 )}
                 <button

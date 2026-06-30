@@ -140,5 +140,12 @@ class ApiService {
       if (action != null && action.isNotEmpty) 'action': action,
     });
   }
+
+  Future<Response> changePassword({required String currentPassword, required String newPassword}) {
+    return _dio.post('/auth/change-password', data: {
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+  }
 }
 

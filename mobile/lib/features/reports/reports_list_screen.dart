@@ -11,6 +11,7 @@ import 'add_report_screen.dart';
 import '../../core/api_service.dart';
 import 'managers_list_screen.dart';
 import 'audit_logs_screen.dart';
+import '../auth/reset_password_screen.dart';
 
 String formatINR(double amount) {
   final formatter = NumberFormat.currency(
@@ -69,6 +70,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
   }
 
   Future<void> _handleRowClick(BuildContext context, ReportItem r) async {
+    final user = ref.read(authProvider).user;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -89,14 +91,24 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
             },
             child: const Text('Edit Transaction'),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _deleteReport(r.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete Transaction'),
-          ),
+          if (user?.role == 'boss')
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _deleteReport(r.id);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete Transaction'),
+            ),
+          if (user?.role == 'boss' && _selectedClient != null)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _deleteClient(_selectedClient!);
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete Client'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
@@ -200,6 +212,16 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Client and all reports deleted successfully.')),
       );
+
+      if (_selectedClient != null &&
+          _selectedClient!.clientName == client.clientName &&
+          _selectedClient!.clientPhone == client.clientPhone) {
+        setState(() {
+          _selectedClient = null;
+          _searchQuery = '';
+          _searchCtrl.clear();
+        });
+      }
 
       ref.read(clientsProvider.notifier).fetchClients();
     } catch (e) {
@@ -409,9 +431,29 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                   context,
                   MaterialPageRoute(builder: (ctx) => const AuditLogsScreen()),
                 );
+              } else if (v == 'reset_password') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (ctx) => const ResetPasswordScreen()),
+                );
+              } else if (v == 'delete_client') {
+                if (_selectedClient != null) {
+                  _deleteClient(_selectedClient!);
+                }
               }
             },
             itemBuilder: (_) => [
+              if (user?.role == 'boss' && _selectedClient != null)
+                const PopupMenuItem(
+                  value: 'delete_client',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_forever, size: 18, color: AppTheme.danger),
+                      SizedBox(width: 10),
+                      Text('Delete Client', style: TextStyle(color: AppTheme.danger)),
+                    ],
+                  ),
+                ),
               if (user?.role == 'boss')
                 const PopupMenuItem(
                   value: 'managers',
@@ -431,6 +473,17 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                       Icon(Icons.history_edu_outlined, size: 18, color: AppTheme.textSecondary),
                       SizedBox(width: 10),
                       Text('Audit Logs'),
+                    ],
+                  ),
+                ),
+              if (user?.role == 'boss')
+                const PopupMenuItem(
+                  value: 'reset_password',
+                  child: Row(
+                    children: [
+                      Icon(Icons.lock_reset, size: 18, color: AppTheme.textSecondary),
+                      SizedBox(width: 10),
+                      Text('Reset Password'),
                     ],
                   ),
                 ),
