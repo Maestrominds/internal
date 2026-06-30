@@ -24,6 +24,7 @@ export default function ManagerListPage() {
   const [confirmDelete, setConfirmDelete] = useState(null); // manager obj
   const [resetting, setResetting] = useState(null); // manager id
   const [resetPasswordForManager, setResetPasswordForManager] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchManagers = async () => {
     setLoading(true);
@@ -41,6 +42,7 @@ export default function ManagerListPage() {
 
   async function handleDelete() {
     if (!confirmDelete) return;
+    setIsDeleting(true);
     try {
       await deleteManager(confirmDelete.id);
       toast.success(`${confirmDelete.name} has been removed`);
@@ -48,6 +50,8 @@ export default function ManagerListPage() {
       fetchManagers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -176,6 +180,7 @@ export default function ManagerListPage() {
           message={`Are you sure you want to delete "${confirmDelete.name}"? They will be immediately logged out if currently signed in.`}
           confirmLabel="Delete"
           danger
+          loading={isDeleting}
           onConfirm={handleDelete}
           onCancel={() => setConfirmDelete(null)}
         />

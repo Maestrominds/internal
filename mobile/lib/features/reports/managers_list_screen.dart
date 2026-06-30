@@ -207,36 +207,59 @@ class _ManagersListScreenState extends ConsumerState<ManagersListScreen> {
   }
 
   Future<void> _deleteManager(ManagerModel m) async {
+    bool loading = false;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Manager'),
-        content: Text('Are you sure you want to delete "${m.name}"? They will be immediately logged out if currently signed in.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('Delete Manager'),
+          content: loading
+              ? const SizedBox(
+                  height: 60,
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : Text('Are you sure you want to delete "${m.name}"? They will be immediately logged out if currently signed in.'),
+          actions: [
+            TextButton(
+              onPressed: loading ? null : () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: loading
+                  ? null
+                  : () async {
+                      setDlgState(() => loading = true);
+                      try {
+                        await _api.deleteManager(m.id);
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx, true);
+                      } catch (e) {
+                        setDlgState(() => loading = false);
+                        if (!ctx.mounted) return;
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          SnackBar(content: Text('Delete failed: $e'), backgroundColor: AppTheme.danger),
+                        );
+                        Navigator.pop(ctx, false);
+                      }
+                    },
+              style: TextButton.styleFrom(foregroundColor: AppTheme.danger),
+              child: loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: AppTheme.danger, strokeWidth: 2),
+                    )
+                  : const Text('Delete'),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (confirm != true) return;
-
-    try {
-      await _api.deleteManager(m.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${m.name} has been removed'), backgroundColor: AppTheme.success),
-      );
+    if (confirm == true) {
       _fetchManagers();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e'), backgroundColor: AppTheme.danger),
-      );
     }
   }
 

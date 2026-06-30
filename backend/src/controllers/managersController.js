@@ -99,13 +99,13 @@ async function addManager(req, res) {
 }
 
 // DELETE /api/managers/:id (Boss only)
-// Soft delete - sets is_active = false → triggers auto-logout on next request
+// Permanent delete - deletes user from database (cascades where configured)
 async function deleteManager(req, res) {
   try {
     const { id } = req.params;
 
     const check = await pool.query(
-      `SELECT id, role FROM users WHERE id = $1`,
+      `SELECT id, name, role FROM users WHERE id = $1`,
       [id]
     );
 
@@ -117,7 +117,7 @@ async function deleteManager(req, res) {
     }
 
     await pool.query(
-      `UPDATE users SET is_active = false WHERE id = $1`,
+      `DELETE FROM users WHERE id = $1`,
       [id]
     );
 
@@ -127,10 +127,10 @@ async function deleteManager(req, res) {
       userId: req.user.id,
       userName: req.user.name,
       userRole: req.user.role,
-      action: 'DEACTIVATE_MANAGER',
+      action: 'DELETE_MANAGER',
       entityType: 'manager',
       entityId: id,
-      description: `Deactivated manager: ${managerName}`,
+      description: `Deleted manager permanently: ${managerName}`,
     });
 
     return res.status(200).json({ message: 'Manager deleted successfully.' });
