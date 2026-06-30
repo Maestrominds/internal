@@ -30,12 +30,10 @@ app.use(
         return callback(null, true);
       }
 
-      const clientUrl = (process.env.CLIENT_URL || '').trim().replace(/\/$/, '');
       const allowed = [
-        clientUrl,
         'https://internal-client.vercel.app',
         'http://localhost:5173',
-      ].filter(Boolean);
+      ];
 
       if (allowed.includes(normalizedOrigin)) {
         callback(null, true);
