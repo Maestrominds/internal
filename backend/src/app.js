@@ -50,6 +50,9 @@ app.use(
 );
 
 
+// Explicitly handle OPTIONS preflight for all routes (required on Vercel)
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
