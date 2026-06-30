@@ -207,33 +207,7 @@ export default function ReportListPage() {
     }
   };
 
-  const isLongPress = useRef(false);
-  const [longPressTimer, setLongPressTimer] = useState(null);
 
-  const startLongPress = (client) => {
-    isLongPress.current = false;
-    if (!isBoss) return;
-    const timer = setTimeout(() => {
-      isLongPress.current = true;
-      handleDeleteClient(client);
-    }, 800);
-    setLongPressTimer(timer);
-  };
-
-  const endLongPress = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
-
-  const handleClientClickWrapper = (client) => {
-    if (isLongPress.current) {
-      isLongPress.current = false;
-      return;
-    }
-    handleClientClick(client);
-  };
 
   const handleClientClick = (client) => {
     setSearchInput('');
@@ -375,14 +349,8 @@ export default function ReportListPage() {
                 <div
                   key={idx}
                   className="report-card"
-                  onMouseDown={() => startLongPress(c)}
-                  onMouseUp={endLongPress}
-                  onMouseLeave={endLongPress}
-                  onTouchStart={() => startLongPress(c)}
-                  onTouchEnd={endLongPress}
-                  onClick={() => handleClientClickWrapper(c)}
+                  onClick={() => handleClientClick(c)}
                   style={{ cursor: 'pointer' }}
-                  title={isBoss ? "Long press to delete this client" : ""}
                 >
                   <div className="report-card-left">
                     <div className="report-card-name">{c.client_name}</div>
@@ -424,6 +392,19 @@ export default function ReportListPage() {
                       >
                         📄 PDF
                       </button>
+                      {isBoss && (
+                        <button
+                          title="Delete Client"
+                          onClick={() => handleDeleteClient(c)}
+                          style={{
+                            padding: '4px 10px', fontSize: '0.72rem', fontWeight: 600,
+                            background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca',
+                            borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
