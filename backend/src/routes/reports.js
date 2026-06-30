@@ -1,13 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireBoss } = require('../middleware/auth');
 const {
   getReports,
   getClients,
   getReportById,
   createReport,
   updateReport,
+  deleteReport,
+  deleteClientReports,
 } = require('../controllers/reportsController');
 const { getClientExcel, getClientLedgerPdf } = require('../controllers/exportController');
 
@@ -36,6 +38,9 @@ router.get('/export', authenticate, getClientExcel);
 // GET /api/reports/ledger-pdf — download PDF ledger for a client
 router.get('/ledger-pdf', authenticate, getClientLedgerPdf);
 
+// DELETE /api/reports/client — Boss deletes all reports of a client
+router.delete('/client', authenticate, requireBoss, deleteClientReports);
+
 // GET /api/reports/:id
 router.get('/:id', authenticate, getReportById);
 
@@ -54,5 +59,8 @@ router.put(
   upload.array('images', 5),
   updateReport
 );
+
+// DELETE /api/reports/:id — Boss deletes a single report
+router.delete('/:id', authenticate, requireBoss, deleteReport);
 
 module.exports = router;

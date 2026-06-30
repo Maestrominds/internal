@@ -543,4 +543,155 @@ async function updateReport(req, res) {
     }
   }
 
-  module.exports = { getReports, getClients, getReportById, createReport, updateReport };
+// DELETE /api/reports/:id
+async function deleteReport(req, res) {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+
+    // Check if report exists
+    const reportResult = await client.query(
+      'SELECT id, client_name FROM reports WHERE id = $1',
+      [id]
+    );
+
+    if (reportResult.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ message: 'Report not found.' });
+    }
+
+    const report = reportResult.rows[0];
+
+    await client.query('BEGIN');
+
+    // Fetch images
+    const imagesResult = await client.query(
+      'SELECT cloudinary_id FROM report_images WHERE report_id = $1',
+      [id]
+    );
+
+    // Delete from Cloudinary
+    for (const img of imagesResult.rows) {
+      try {
+        await deleteFromCloudinary(img.cloudinary_id);
+      } catch (delErr) {
+        console.error('Failed to delete image from Cloudinary:', img.cloudinary_id, delErr);
+      }
+    }
+
+    // Delete report (cascade will delete from report_images)
+    await client.query('DELETE FROM reports WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+
+    // Audit log
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'DELETE_REPORT',
+      entityType: 'report',
+      entityId: id,
+      description: `Permanently deleted report for client: ${report.client_name}`,
+    });
+
+    return res.status(200).json({ message: 'Report deleted successfully.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('deleteReport error:', err);
+    return res.status(500).json({ message: 'Server error.' });
+  } finally {
+    client.release();
+  }
+}
+
+// DELETE /api/reports/client
+async function deleteClientReports(req, res) {
+  const client = await pool.connect();
+  try {
+    const { client_name, client_phone } = req.query;
+
+    if (!client_name && !client_phone) {
+      client.release();
+      return res.status(400).json({ message: 'Client name or phone is required.' });
+    }
+
+    const conditions = [];
+    const params = [];
+
+    if (client_phone && client_phone.trim()) {
+      conditions.push(`client_phone = $1`);
+      params.push(client_phone.trim());
+    } else {
+      conditions.push(`LOWER(client_name) = LOWER($1) AND (client_phone IS NULL OR client_phone = '')`);
+      params.push(client_name.trim());
+    }
+
+    // Find all matching reports
+    const reportsResult = await client.query(
+      `SELECT id, client_name FROM reports WHERE ${conditions.join(' AND ')}`,
+      params
+    );
+
+    if (reportsResult.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ message: 'No reports found for this client.' });
+    }
+
+    const reportIds = reportsResult.rows.map(r => r.id);
+    const clientName = reportsResult.rows[0].client_name;
+
+    await client.query('BEGIN');
+
+    // Find all associated images
+    const imagesResult = await client.query(
+      `SELECT cloudinary_id FROM report_images WHERE report_id = ANY($1)`,
+      [reportIds]
+    );
+
+    // Delete from Cloudinary
+    for (const img of imagesResult.rows) {
+      try {
+        await deleteFromCloudinary(img.cloudinary_id);
+      } catch (delErr) {
+        console.error('Failed to delete image from Cloudinary:', img.cloudinary_id, delErr);
+      }
+    }
+
+    // Delete reports (cascade will delete from report_images)
+    await client.query(
+      `DELETE FROM reports WHERE id = ANY($1)`,
+      [reportIds]
+    );
+
+    await client.query('COMMIT');
+
+    // Audit log
+    await logAction({
+      userId: req.user.id,
+      userName: req.user.name,
+      userRole: req.user.role,
+      action: 'DELETE_CLIENT',
+      entityType: 'report',
+      description: `Permanently deleted client: ${clientName} along with all their ${reportIds.length} report(s)`,
+    });
+
+    return res.status(200).json({ message: `Successfully deleted client ${clientName} and all their reports.` });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('deleteClientReports error:', err);
+    return res.status(500).json({ message: 'Server error.' });
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = {
+  getReports,
+  getClients,
+  getReportById,
+  createReport,
+  updateReport,
+  deleteReport,
+  deleteClientReports,
+};

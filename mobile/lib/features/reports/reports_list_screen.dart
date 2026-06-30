@@ -90,12 +90,124 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
             child: const Text('Edit Transaction'),
           ),
           TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteReport(r.id);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete Transaction'),
+          ),
+          TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _deleteReport(String reportId) async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Transaction'),
+        content: const Text('Are you sure you want to permanently delete this report? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: AppTheme.accent500)),
+    );
+
+    try {
+      await ApiService().deleteReport(reportId);
+      navigator.pop(); // close loader
+
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Report deleted successfully.')),
+      );
+
+      if (_selectedClient != null) {
+        ref.read(clientReportsProvider.notifier).fetchReportsForClient(
+              name: _selectedClient!.clientName,
+              phone: _selectedClient!.clientPhone,
+            );
+      }
+    } catch (e) {
+      navigator.pop(); // close loader
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to delete report: $e')),
+      );
+    }
+  }
+
+  Future<void> _deleteClient(ClientItem client) async {
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    final phoneStr = client.clientPhone != null && client.clientPhone!.isNotEmpty
+        ? ' (Phone: ${client.clientPhone})'
+        : '';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Client'),
+        content: Text('Are you sure you want to permanently delete client "${client.clientName}"$phoneStr? This will permanently delete ALL reports and images for this client from the database.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const Center(child: CircularProgressIndicator(color: AppTheme.accent500)),
+    );
+
+    try {
+      await ApiService().deleteClient(client.clientName, client.clientPhone);
+      navigator.pop(); // close loader
+
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Client and all reports deleted successfully.')),
+      );
+
+      ref.read(clientsProvider.notifier).fetchClients();
+    } catch (e) {
+      navigator.pop(); // close loader
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to delete client: $e')),
+      );
+    }
   }
 
   Future<void> _viewDetails(String reportId) async {
@@ -478,6 +590,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                         phone: client.clientPhone,
                                       );
                                 },
+                                onLongPress: user?.role == 'boss' ? () => _deleteClient(client) : null,
                               ),
                             );
                           },

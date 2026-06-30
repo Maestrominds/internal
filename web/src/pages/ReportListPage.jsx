@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { getReports, getClients, getReportById, exportClientExcel, downloadLedgerPdf } from '../api/reports';
+import { getReports, getClients, getReportById, exportClientExcel, downloadLedgerPdf, deleteReport, deleteClientReports } from '../api/reports';
 import { useAuth } from '../context/AuthContext';
 import { formatINR, formatDate } from '../utils/format';
 import AddReportModal from '../components/AddReportModal';
@@ -169,6 +169,72 @@ export default function ReportListPage() {
     }
   };
 
+  const handleDeleteReport = async (reportId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this report? This action cannot be undone.')) {
+      return;
+    }
+    const toastId = toast.loading('Deleting report...');
+    try {
+      await deleteReport(reportId);
+      toast.success('Report deleted successfully!', { id: toastId });
+      setSelectedReportForAction(null);
+      if (selectedClient) {
+        fetchReportsForClient(selectedClient, page);
+      } else {
+        fetchClients();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete report', { id: toastId });
+    }
+  };
+
+  const handleDeleteClient = async (client) => {
+    const phoneInfo = client.client_phone ? ` (Phone: ${client.client_phone})` : '';
+    if (!window.confirm(`Are you sure you want to permanently delete client "${client.client_name}"${phoneInfo}? This will permanently delete ALL reports and images for this client from the database.`)) {
+      return;
+    }
+    const toastId = toast.loading('Deleting client and all reports...');
+    try {
+      const params = { client_name: client.client_name };
+      if (client.client_phone) {
+        params.client_phone = client.client_phone;
+      }
+      await deleteClientReports(params);
+      toast.success('Client and all reports deleted successfully!', { id: toastId });
+      fetchClients();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete client', { id: toastId });
+    }
+  };
+
+  const isLongPress = useRef(false);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+
+  const startLongPress = (client) => {
+    isLongPress.current = false;
+    if (!isBoss) return;
+    const timer = setTimeout(() => {
+      isLongPress.current = true;
+      handleDeleteClient(client);
+    }, 800);
+    setLongPressTimer(timer);
+  };
+
+  const endLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleClientClickWrapper = (client) => {
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
+    handleClientClick(client);
+  };
+
   const handleClientClick = (client) => {
     setSearchInput('');
     setPage(1);
@@ -309,8 +375,14 @@ export default function ReportListPage() {
                 <div
                   key={idx}
                   className="report-card"
-                  onClick={() => handleClientClick(c)}
+                  onMouseDown={() => startLongPress(c)}
+                  onMouseUp={endLongPress}
+                  onMouseLeave={endLongPress}
+                  onTouchStart={() => startLongPress(c)}
+                  onTouchEnd={endLongPress}
+                  onClick={() => handleClientClickWrapper(c)}
                   style={{ cursor: 'pointer' }}
+                  title={isBoss ? "Long press to delete this client" : ""}
                 >
                   <div className="report-card-left">
                     <div className="report-card-name">{c.client_name}</div>
@@ -609,6 +681,34 @@ export default function ReportListPage() {
                   onClick={() => handleEditClick(selectedReportForAction.id)}
                 >
                   ✏️ Edit Transaction
+                </button>
+                {isBoss && (
+                  <button
+                    className="btn btn-danger"
+                    style={{
+                      width: '100%',
+                      cursor: 'pointer',
+                      backgroundColor: '#dc2626',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#b91c1c'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = '#dc2626'}
+                    onClick={() => handleDeleteReport(selectedReportForAction.id)}
+                  >
+                    🗑️ Delete Transaction
+                  </button>
+                )}
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', cursor: 'pointer' }}
+                  onClick={() => setSelectedReportForAction(null)}
+                >
+                  ❌ Cancel
                 </button>
               </div>
             </div>

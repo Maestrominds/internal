@@ -23,3 +23,9 @@ export const exportClientExcel = (params = {}) =>
 export const downloadLedgerPdf = (params = {}) =>
   api.get('/reports/ledger-pdf', { params, responseType: 'blob' });
 
+export const deleteReport = (id) =>
+  api.delete(`/reports/${id}`);
+
+export const deleteClientReports = (params = {}) =>
+  api.delete('/reports/client', { params });
+

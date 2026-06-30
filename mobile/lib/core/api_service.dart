@@ -98,6 +98,17 @@ class ApiService {
     return _dio.put('/reports/$id', data: data);
   }
 
+  Future<Response> deleteReport(String id) {
+    return _dio.delete('/reports/$id');
+  }
+
+  Future<Response> deleteClient(String clientName, String? clientPhone) {
+    return _dio.delete('/reports/client', queryParameters: {
+      'client_name': clientName,
+      if (clientPhone != null && clientPhone.isNotEmpty) 'client_phone': clientPhone,
+    });
+  }
+
   // Managers
   Future<Response> getManagers() {
     return _dio.get('/managers');
