@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/theme.dart';
 import 'auth_provider.dart';
+import '../home/home_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -34,7 +35,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
     if (mounted) {
       setState(() => _loading = false);
-      if (!success) {
+      if (success) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
         final error = ref.read(authProvider).error ?? 'Login failed';
         Fluttertoast.showToast(
           msg: error,

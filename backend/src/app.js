@@ -79,16 +79,8 @@ const PORT = process.env.PORT || 5000;
 
 async function startServer() {
   try {
-    // Run DB migration
     await runMigration();
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-      if (!isProd && process.env.BOSS_EMAIL) {
-        console.log(`   Boss: ${process.env.BOSS_EMAIL} / ${process.env.BOSS_PASSWORD}`);
-      }
-    });
+    app.listen(PORT);
   } catch (err) {
     console.error('❌ Failed to start server:', err);
     process.exit(1);

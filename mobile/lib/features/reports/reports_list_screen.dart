@@ -100,15 +100,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Delete Transaction'),
             ),
-          if (user?.role == 'boss' && _selectedClient != null)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _deleteClient(_selectedClient!);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete Client'),
-            ),
+
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
@@ -333,28 +325,35 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
             _searchCtrl.clear();
           });
         } else {
-          final exit = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Exit App'),
-              content: const Text('Are you sure you want to exit?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Exit'),
-                ),
-              ],
-            ),
-          );
-          if (exit == true) {
-            await SystemNavigator.pop();
+          // If there's a parent route (e.g. HomeScreen), go back to it
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.pop();
+          } else {
+            final exit = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Exit App'),
+                content: const Text('Are you sure you want to exit?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Exit'),
+                  ),
+                ],
+              ),
+            );
+            if (exit == true) {
+              await SystemNavigator.pop();
+            }
           }
         }
       },
+
       child: Scaffold(
       appBar: AppBar(
         backgroundColor: AppTheme.primary800,
@@ -963,111 +962,3 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
   }
 }
 
-class _ReportCard extends StatelessWidget {
-  final ReportItem report;
-  final VoidCallback onTap;
-  final VoidCallback onViewImages;
-
-  const _ReportCard({
-    required this.report,
-    required this.onTap,
-    required this.onViewImages,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'By ${report.managerName}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatDate(report.reportDate),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textMuted,
-                      ),
-                    ),
-                    if (report.shortDesc != null && report.shortDesc!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        report.shortDesc!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ] else if (report.note != null && report.note!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        report.note!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textSecondary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${report.isGreen ? "+" : "-"} ${formatINR(report.amount)}',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: report.isGreen ? Colors.green.shade600 : Colors.red.shade600,
-                    ),
-                  ),
-                  if (report.imageCount > 0) ...[
-                    const SizedBox(height: 6),
-                    OutlinedButton.icon(
-                      onPressed: onViewImages,
-                      icon: const Icon(Icons.image_outlined, size: 14),
-                      label: Text(
-                        'Images (${report.imageCount})',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        side: BorderSide(color: Theme.of(context).primaryColor),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: AppTheme.textMuted, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -4,7 +4,6 @@ require('dotenv').config();
 async function runMigration() {
   const client = await pool.connect();
   try {
-    console.log('🔄 Running database migration...');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -17,7 +16,6 @@ async function runMigration() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log('✅ users table ready');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS reports (
@@ -37,7 +35,7 @@ async function runMigration() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log('✅ reports table ready');
+
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS report_images (
@@ -49,7 +47,7 @@ async function runMigration() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log('✅ report_images table ready');
+
 
     await client.query(`
       ALTER TABLE report_images ADD COLUMN IF NOT EXISTS caption VARCHAR(200);
@@ -60,7 +58,7 @@ async function runMigration() {
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS next_report_date DATE;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS client_business_name VARCHAR(100);
     `);
-    console.log('✅ report columns verified');
+
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
@@ -75,9 +73,9 @@ async function runMigration() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    console.log('✅ audit_logs table ready');
 
-    console.log('✅ Migration complete!');
+
+
   } catch (err) {
     console.error('❌ Migration failed:', err);
     throw err;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../../core/api_service.dart';
+import '../../core/exceptions.dart';
 import '../../core/theme.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -35,8 +37,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       await ApiService().changePassword(
-        currentPassword: _currentPasswordCtrl.text,
-        newPassword: _newPasswordCtrl.text,
+        currentPassword: _currentPasswordCtrl.text.trim(),
+        newPassword: _newPasswordCtrl.text.trim(),
       );
 
       scaffoldMessenger.showSnackBar(
@@ -46,9 +48,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _currentPasswordCtrl.clear();
       _newPasswordCtrl.clear();
       _confirmPasswordCtrl.clear();
+    } on DioException catch (e) {
+      final msg = AppException.fromDioException(e).message;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     } catch (e) {
       scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Failed to update password: $e')),
+        SnackBar(content: Text(AppException.fromError(e).message)),
       );
     } finally {
       if (mounted) {
