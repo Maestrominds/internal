@@ -78,7 +78,8 @@ export default function ReportListPage() {
     const isExcel = fileType === 'Excel';
     const toastId = toast.loading(`Preparing ${fileType}...`);
     try {
-      const params = { client_name: client.client_name, password };
+      const params = { client_name: client.client_name };
+      if (password) params.password = password;
       if (client.client_phone) params.client_phone = client.client_phone;
       
       const res = isExcel ? await exportClientExcel(params) : await downloadLedgerPdf(params);
