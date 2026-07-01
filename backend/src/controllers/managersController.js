@@ -169,7 +169,7 @@ async function resetManagerPassword(req, res) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     await pool.query(
-      `UPDATE users SET password = $1 WHERE id = $2`,
+      `UPDATE users SET password = $1, token_version = token_version + 1 WHERE id = $2`,
       [hashedPassword, id]
     );
 

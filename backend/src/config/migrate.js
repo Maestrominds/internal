@@ -13,6 +13,7 @@ async function runMigration() {
         password TEXT NOT NULL,
         role VARCHAR(10) NOT NULL CHECK (role IN ('boss', 'manager')),
         is_active BOOLEAN DEFAULT TRUE,
+        token_version INT DEFAULT 1,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `);
@@ -20,7 +21,7 @@ async function runMigration() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        manager_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        manager_id UUID REFERENCES users(id) ON DELETE SET NULL,
         client_name VARCHAR(50) NOT NULL,
         client_phone VARCHAR(15),
         amount NUMERIC(14, 2) NOT NULL,
@@ -57,6 +58,11 @@ async function runMigration() {
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_green BOOLEAN DEFAULT TRUE;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS next_report_date DATE;
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS client_business_name VARCHAR(100);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT DEFAULT 1;
+
+      -- Drop old ON DELETE CASCADE constraint if it exists, and recreate with ON DELETE SET NULL
+      ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_manager_id_fkey;
+      ALTER TABLE reports ADD CONSTRAINT reports_manager_id_fkey FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL;
     `);
 
 

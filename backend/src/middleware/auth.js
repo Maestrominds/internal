@@ -34,7 +34,7 @@ async function authenticate(req, res, next) {
 
     // Check user still exists and is active
     const result = await pool.query(
-      'SELECT id, name, email, role, is_active FROM users WHERE id = $1',
+      'SELECT id, name, email, role, is_active, token_version FROM users WHERE id = $1',
       [decoded.id]
     );
 
@@ -43,6 +43,16 @@ async function authenticate(req, res, next) {
     }
 
     const user = result.rows[0];
+
+    // Check if password has been reset or changed (session invalidation)
+    if (decoded.token_version !== undefined && user.token_version !== decoded.token_version) {
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
+      });
+      return res.status(401).json({ message: 'Session expired. Please log in again.' });
+    }
 
     if (!user.is_active) {
       // Clear the cookie and force logout

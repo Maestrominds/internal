@@ -43,7 +43,7 @@ async function login(req, res) {
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, token_version: user.token_version },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
@@ -126,9 +126,9 @@ async function changePassword(req, res) {
       return res.status(400).json({ message: 'Incorrect current password.' });
     }
 
-    // Hash and update to new password
+    // Hash and update to new password, incrementing token_version
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+    await pool.query('UPDATE users SET password = $1, token_version = token_version + 1 WHERE id = $2', [hashedPassword, req.user.id]);
 
     return res.status(200).json({ message: 'Password changed successfully.' });
   } catch (err) {
