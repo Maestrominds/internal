@@ -708,17 +708,16 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                             final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(9999);
                             final dateComp = dateA.compareTo(dateB);
                             if (dateComp != 0) return dateComp;
-                            // Since reports is newest first, the older report has a higher index in the original list.
-                            return reports.indexOf(b).compareTo(reports.indexOf(a));
+                            // Since reports is oldest first, the older report has a lower index in the original list.
+                            return reports.indexOf(a).compareTo(reports.indexOf(b));
                           });
                           firstReport = sortedReports.first;
                         }
 
                         // Compute cumulative outstanding sums
-                        final reversed = List<ReportItem>.from(filteredReports).reversed.toList();
                         double runningSum = 0.0;
                         final Map<String, double> runningSumsMap = {};
-                        for (final r in reversed) {
+                        for (final r in filteredReports) {
                           runningSum = r.isGreen ? runningSum + r.amount : runningSum - r.amount;
                           runningSumsMap[r.id] = runningSum;
                         }
@@ -943,7 +942,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            reports.isNotEmpty ? formatDate(reports.first.reportDate) : '—',
+                                            reports.isNotEmpty ? formatDate(reports.last.reportDate) : '—',
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 14,

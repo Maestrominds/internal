@@ -53,7 +53,7 @@ async function getReports(req, res) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
 
-    query += ' ORDER BY r.report_date DESC, r.created_at DESC';
+    query += ' ORDER BY r.report_date ASC, r.created_at ASC';
 
     if (!isNaN(page) && !isNaN(limit) && page > 0 && limit > 0) {
       const offset = (page - 1) * limit;

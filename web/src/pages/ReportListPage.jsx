@@ -256,8 +256,8 @@ export default function ReportListPage() {
     const sorted = [...reports].sort((a, b) => {
       const dateDiff = new Date(a.report_date) - new Date(b.report_date);
       if (dateDiff !== 0) return dateDiff;
-      // Since reports is ordered newest first, the older report is later in the reports array (has a larger index).
-      return reports.indexOf(b) - reports.indexOf(a);
+      // Since reports is ordered oldest first, the older report is earlier in the reports array (has a smaller index).
+      return reports.indexOf(a) - reports.indexOf(b);
     });
     return sorted[0];
   }, [reports]);
@@ -282,18 +282,15 @@ export default function ReportListPage() {
   const latestReportDate = latestReport ? formatDate(latestReport.report_date) : '—';
 
   const reportsWithCumulativeOutstanding = useMemo(() => {
-    const reversed = [...filteredReports].reverse();
     let runningSum = 0;
-    const runningSumsMap = {};
-    for (const r of reversed) {
+    return filteredReports.map(r => {
       const amt = parseFloat(r.amount) || 0;
       runningSum = r.is_green ? runningSum + amt : runningSum - amt;
-      runningSumsMap[r.id] = runningSum;
-    }
-    return filteredReports.map(r => ({
-      ...r,
-      cumulativeOutstanding: runningSumsMap[r.id] || 0
-    }));
+      return {
+        ...r,
+        cumulativeOutstanding: runningSum
+      };
+    });
   }, [filteredReports]);
 
   return (
