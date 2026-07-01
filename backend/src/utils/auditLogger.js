@@ -18,6 +18,16 @@ async function logAction({ userId, userName, userRole, action, entityType, entit
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [userId || null, userName || 'Unknown', userRole || 'unknown', action, entityType || null, entityId || null, description || null]
     );
+    // Keep only the latest 50 logs in the database
+    await pool.query(
+      `DELETE FROM audit_logs
+       WHERE id NOT IN (
+         SELECT id
+         FROM audit_logs
+         ORDER BY created_at DESC
+         LIMIT 50
+       )`
+    );
   } catch (err) {
     // Never let audit logging crash the main request
     console.error('Audit log error:', err);
