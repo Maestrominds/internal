@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/api_service.dart';
 import '../../core/exceptions.dart';
 import '../../core/theme.dart';
+import '../home/home_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -48,6 +49,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _currentPasswordCtrl.clear();
       _newPasswordCtrl.clear();
       _confirmPasswordCtrl.clear();
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } on DioException catch (e) {
       final msg = AppException.fromDioException(e).message;
       scaffoldMessenger.showSnackBar(

@@ -49,4 +49,18 @@ async function getAuditLogs(req, res) {
   }
 }
 
-module.exports = { getAuditLogs };
+async function deleteAuditLog(req, res) {
+  try {
+    if (req.user.role !== 'boss') {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+    const { id } = req.params;
+    await pool.query('DELETE FROM audit_logs WHERE id = $1', [id]);
+    return res.status(200).json({ message: 'Audit log deleted successfully.' });
+  } catch (err) {
+    console.error('deleteAuditLog error:', err);
+    return res.status(500).json({ message: 'Server error.' });
+  }
+}
+
+module.exports = { getAuditLogs, deleteAuditLog };

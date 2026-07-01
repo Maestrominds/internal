@@ -133,6 +133,10 @@ class ApiService {
   }
 
   // Audit Logs (Boss only)
+  Future<Response> deleteAuditLog(String id) {
+    return _dio.delete('/audit/$id');
+  }
+
   Future<Response> getAuditLogs({int page = 1, int limit = 20, String? action}) {
     return _dio.get('/audit', queryParameters: {
       'page': page,

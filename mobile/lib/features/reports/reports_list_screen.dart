@@ -12,6 +12,7 @@ import '../../core/api_service.dart';
 import 'managers_list_screen.dart';
 import 'audit_logs_screen.dart';
 import '../auth/reset_password_screen.dart';
+import '../auth/login_screen.dart';
 
 String formatINR(double amount) {
   final formatter = NumberFormat.currency(
@@ -419,7 +420,15 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (v) {
               if (v == 'logout') {
-                ref.read(authProvider.notifier).logout();
+                ref.read(authProvider.notifier).logout().then((_) {
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (ctx) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
+                });
               } else if (v == 'managers') {
                 Navigator.push(
                   context,

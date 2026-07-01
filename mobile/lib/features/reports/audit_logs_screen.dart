@@ -190,6 +190,41 @@ class _AuditLogsScreenState extends ConsumerState<AuditLogsScreen> {
     );
   }
 
+  void _showDeleteDialog(AuditLog log) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Audit Log'),
+        content: const Text('Are you sure you want to delete this log?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.danger),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await ApiService().deleteAuditLog(log.id);
+                if (mounted) {
+                  ref.read(auditProvider.notifier).fetch(page: ref.read(auditProvider).page, action: _selectedFilter);
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to delete log')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(auditProvider);
@@ -314,65 +349,69 @@ class _AuditLogsScreenState extends ConsumerState<AuditLogsScreen> {
                               separatorBuilder: (_, __) => const SizedBox(height: 8),
                               itemBuilder: (context, index) {
                                 final log = state.logs[index];
-                                return Card(
-                                  margin: EdgeInsets.zero,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: _buildActionChip(log.action),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            _buildRoleChip(log.userRole),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.person_outline, size: 15, color: AppTheme.textSecondary),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              log.userName,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 14,
-                                                color: AppTheme.textPrimary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (log.description != null && log.description!.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
+                                return InkWell(
+                                  onLongPress: () => _showDeleteDialog(log),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Card(
+                                    margin: EdgeInsets.zero,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
                                           Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              const Icon(Icons.info_outline, size: 14, color: AppTheme.textMuted),
-                                              const SizedBox(width: 4),
                                               Expanded(
-                                                child: Text(
-                                                  log.description!,
-                                                  style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                                child: _buildActionChip(log.action),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              _buildRoleChip(log.userRole),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.person_outline, size: 15, color: AppTheme.textSecondary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                log.userName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 14,
+                                                  color: AppTheme.textPrimary,
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ],
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.access_time, size: 13, color: AppTheme.textMuted),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              _formatDateTime(log.createdAt),
-                                              style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                          if (log.description != null && log.description!.isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Icon(Icons.info_outline, size: 14, color: AppTheme.textMuted),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    log.description!,
+                                                    style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ],
-                                        ),
-                                      ],
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.access_time, size: 13, color: AppTheme.textMuted),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _formatDateTime(log.createdAt),
+                                                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );

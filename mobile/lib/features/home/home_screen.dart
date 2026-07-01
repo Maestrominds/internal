@@ -6,6 +6,7 @@ import '../auth/reset_password_screen.dart';
 import '../reports/reports_list_screen.dart';
 import '../reports/audit_logs_screen.dart';
 import '../reports/managers_list_screen.dart';
+import '../auth/login_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -45,6 +46,13 @@ class HomeScreen extends ConsumerWidget {
               );
               if (confirm == true) {
                 await ref.read(authProvider.notifier).logout();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (ctx) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               }
             },
           ),

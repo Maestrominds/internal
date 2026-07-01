@@ -126,9 +126,9 @@ async function changePassword(req, res) {
       return res.status(400).json({ message: 'Incorrect current password.' });
     }
 
-    // Hash and update to new password, incrementing token_version
+    // Hash and update to new password, without incrementing token_version so session isn't cleared
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    await pool.query('UPDATE users SET password = $1, token_version = token_version + 1 WHERE id = $2', [hashedPassword, req.user.id]);
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
 
     return res.status(200).json({ message: 'Password changed successfully.' });
   } catch (err) {
