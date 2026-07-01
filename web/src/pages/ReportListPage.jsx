@@ -95,20 +95,20 @@ export default function ReportListPage() {
     }
   };
 
-  const fetchClients = useCallback(async () => {
-    setLoading(true);
+  const fetchClients = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await getClients();
       setClients(res.data.clients);
     } catch {
-      toast.error('Failed to load clients');
+      if (!silent) toast.error('Failed to load clients');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
-  const fetchReportsForClient = useCallback(async (client, currentPage = 1) => {
-    setLoading(true);
+  const fetchReportsForClient = useCallback(async (client, currentPage = 1, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = {
         client_name: client.client_name,
@@ -122,9 +122,9 @@ export default function ReportListPage() {
       setReports(res.data.reports);
       setTotalReports(res.data.totalCount || 0);
     } catch {
-      toast.error('Failed to load reports');
+      if (!silent) toast.error('Failed to load reports');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -134,6 +134,18 @@ export default function ReportListPage() {
     } else {
       fetchReportsForClient(selectedClient, page);
     }
+  }, [selectedClient, page, fetchClients, fetchReportsForClient]);
+
+  // Background polling every 15 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!selectedClient) {
+        fetchClients(true);
+      } else {
+        fetchReportsForClient(selectedClient, page, true);
+      }
+    }, 15000);
+    return () => clearInterval(interval);
   }, [selectedClient, page, fetchClients, fetchReportsForClient]);
 
   const handleViewImages = async (reportId, e) => {

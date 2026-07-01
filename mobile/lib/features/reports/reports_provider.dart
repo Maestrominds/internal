@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../core/api_service.dart';
@@ -168,12 +169,22 @@ class ReportImage {
 // Reports List Provider
 class ReportsNotifier extends StateNotifier<AsyncValue<List<ReportItem>>> {
   final ApiService _api = ApiService();
+  Timer? _timer;
+  String? _lastSearch;
 
   ReportsNotifier() : super(const AsyncValue.loading()) {
     fetchReports();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _backgroundFetch();
+    });
   }
 
   Future<void> fetchReports({String? search}) async {
+    _lastSearch = search;
     state = const AsyncValue.loading();
     try {
       final res = await _api.getReports(search: search);
@@ -190,6 +201,22 @@ class ReportsNotifier extends StateNotifier<AsyncValue<List<ReportItem>>> {
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
+
+  Future<void> _backgroundFetch() async {
+    try {
+      final res = await _api.getReports(search: _lastSearch);
+      final list = (res.data['reports'] as List<dynamic>)
+          .map((e) => ReportItem.fromJson(e))
+          .toList();
+      state = AsyncValue.data(list);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 }
 
 final reportsProvider =
@@ -200,9 +227,17 @@ final reportsProvider =
 // Clients List Provider
 class ClientsNotifier extends StateNotifier<AsyncValue<List<ClientItem>>> {
   final ApiService _api = ApiService();
+  Timer? _timer;
 
   ClientsNotifier() : super(const AsyncValue.loading()) {
     fetchClients();
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _backgroundFetch();
+    });
   }
 
   Future<void> fetchClients() async {
@@ -222,6 +257,22 @@ class ClientsNotifier extends StateNotifier<AsyncValue<List<ClientItem>>> {
       state = AsyncValue.error(e, StackTrace.current);
     }
   }
+
+  Future<void> _backgroundFetch() async {
+    try {
+      final res = await _api.getClients();
+      final list = (res.data['clients'] as List<dynamic>)
+          .map((e) => ClientItem.fromJson(e))
+          .toList();
+      state = AsyncValue.data(list);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 }
 
 final clientsProvider =
@@ -232,11 +283,26 @@ final clientsProvider =
 // Client Reports Provider
 class ClientReportsNotifier extends StateNotifier<AsyncValue<List<ReportItem>>> {
   final ApiService _api = ApiService();
+  Timer? _timer;
+  String? _lastName;
+  String? _lastPhone;
 
   ClientReportsNotifier() : super(const AsyncValue.data([]));
 
+  void _startPolling() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (_lastName != null || _lastPhone != null) {
+        _backgroundFetch();
+      }
+    });
+  }
+
   Future<void> fetchReportsForClient({String? name, String? phone}) async {
+    _lastName = name;
+    _lastPhone = phone;
     state = const AsyncValue.loading();
+    _startPolling();
     try {
       final res = await _api.getReports(clientName: name, clientPhone: phone);
       final list = (res.data['reports'] as List<dynamic>)
@@ -251,6 +317,22 @@ class ClientReportsNotifier extends StateNotifier<AsyncValue<List<ReportItem>>> 
     } catch (e) {
       state = AsyncValue.error(e, StackTrace.current);
     }
+  }
+
+  Future<void> _backgroundFetch() async {
+    try {
+      final res = await _api.getReports(clientName: _lastName, clientPhone: _lastPhone);
+      final list = (res.data['reports'] as List<dynamic>)
+          .map((e) => ReportItem.fromJson(e))
+          .toList();
+      state = AsyncValue.data(list);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 }
 
