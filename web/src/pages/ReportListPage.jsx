@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatINR, formatDate } from '../utils/format';
 import AddReportModal from '../components/AddReportModal';
 import EditReportModal from '../components/EditReportModal';
+import PasswordModal from '../components/PasswordModal';
 import { Lightbox } from '../components/ImageGallery';
 import toast from 'react-hot-toast';
 
@@ -55,45 +56,41 @@ export default function ReportListPage() {
   const [lightboxImages, setLightboxImages] = useState(null);
   const [reportToEdit, setReportToEdit] = useState(null);
   const [loadingReportDetails, setLoadingReportDetails] = useState(false);
+  const [passwordModalConfig, setPasswordModalConfig] = useState({ isOpen: false, fileType: '', client: null });
 
   const isBoss = user?.role === 'boss';
 
   // ── Download helpers ──
-  const handleExportExcel = async (client, e) => {
+  const handleExportExcel = (client, e) => {
     if (e) e.stopPropagation();
-    const toastId = toast.loading('Preparing Excel...');
-    try {
-      const params = { client_name: client.client_name };
-      if (client.client_phone) params.client_phone = client.client_phone;
-      const res = await exportClientExcel(params);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${client.client_name.replace(/\s+/g, '_')}_ledger.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success('Excel downloaded!', { id: toastId });
-    } catch {
-      toast.error('Failed to download Excel', { id: toastId });
-    }
+    setPasswordModalConfig({ isOpen: true, fileType: 'Excel', client });
   };
 
-  const handleDownloadPdf = async (client, e) => {
+  const handleDownloadPdf = (client, e) => {
     if (e) e.stopPropagation();
-    const toastId = toast.loading('Generating PDF...');
+    setPasswordModalConfig({ isOpen: true, fileType: 'PDF', client });
+  };
+
+  const executeDownload = async (password) => {
+    const { fileType, client } = passwordModalConfig;
+    setPasswordModalConfig({ isOpen: false, fileType: '', client: null });
+    
+    const isExcel = fileType === 'Excel';
+    const toastId = toast.loading(`Preparing ${fileType}...`);
     try {
-      const params = { client_name: client.client_name };
+      const params = { client_name: client.client_name, password };
       if (client.client_phone) params.client_phone = client.client_phone;
-      const res = await downloadLedgerPdf(params);
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      
+      const res = isExcel ? await exportClientExcel(params) : await downloadLedgerPdf(params);
+      const url = window.URL.createObjectURL(new Blob([res.data], isExcel ? undefined : { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${client.client_name.replace(/\s+/g, '_')}_ledger.pdf`;
+      a.download = `${client.client_name.replace(/\s+/g, '_')}_ledger.${isExcel ? 'xlsx' : 'pdf'}`;
       a.click();
       window.URL.revokeObjectURL(url);
-      toast.success('PDF downloaded!', { id: toastId });
+      toast.success(`${fileType} downloaded!`, { id: toastId });
     } catch {
-      toast.error('Failed to download PDF', { id: toastId });
+      toast.error(`Failed to download ${fileType}`, { id: toastId });
     }
   };
 
@@ -778,6 +775,14 @@ export default function ReportListPage() {
           Loading details...
         </div>
       )}
+
+      <PasswordModal
+        isOpen={passwordModalConfig.isOpen}
+        onClose={() => setPasswordModalConfig({ isOpen: false, fileType: '', client: null })}
+        onSubmit={executeDownload}
+        fileType={passwordModalConfig.fileType}
+        clientName={passwordModalConfig.client?.client_name || ''}
+      />
     </Layout>
   );
 }

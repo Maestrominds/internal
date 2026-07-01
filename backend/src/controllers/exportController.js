@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const ExcelJS = require('xlsx');
+const XlsxPopulate = require('xlsx-populate');
 const PDFDocument = require('pdfkit');
 
 function toTitleCase(str) {
@@ -24,10 +25,10 @@ function formatDateStr(dateStr) {
   }
 }
 
-// GET /api/reports/export?client_name=...&client_phone=...
+// GET /api/reports/export?client_name=...&client_phone=...&password=...
 async function getClientExcel(req, res) {
   try {
-    const { client_name, client_phone } = req.query;
+    const { client_name, client_phone, password } = req.query;
     if (!client_name) {
       return res.status(400).json({ message: 'client_name is required.' });
     }
@@ -88,22 +89,34 @@ async function getClientExcel(req, res) {
       };
     });
 
-    const wb = ExcelJS.utils.book_new();
-    const ws = ExcelJS.utils.json_to_sheet(excelData);
+    const wb = await XlsxPopulate.fromBlankAsync();
+    const ws = wb.sheet(0);
+    ws.name('Ledger');
+
+    // Headers
+    const headers = ['S.No', 'Client Name, Business Name', 'Date', 'Received Amt', 'Report Amount', 'Pending Amount'];
+    headers.forEach((h, i) => ws.cell(1, i + 1).value(h));
+
+    // Data
+    excelData.forEach((row, rIdx) => {
+      ws.cell(rIdx + 2, 1).value(row['S.No']);
+      ws.cell(rIdx + 2, 2).value(row['Client Name, Business Name']);
+      ws.cell(rIdx + 2, 3).value(row['Date']);
+      ws.cell(rIdx + 2, 4).value(row['Received Amt']);
+      ws.cell(rIdx + 2, 5).value(row['Report Amount']);
+      ws.cell(rIdx + 2, 6).value(row['Pending Amount']);
+    });
 
     // Column widths
-    ws['!cols'] = [
-      { wch: 6 },
-      { wch: 35 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-    ];
+    ws.column("A").width(6);
+    ws.column("B").width(35);
+    ws.column("C").width(16);
+    ws.column("D").width(18);
+    ws.column("E").width(18);
+    ws.column("F").width(18);
 
-    ExcelJS.utils.book_append_sheet(wb, ws, 'Ledger');
-
-    const buffer = ExcelJS.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const outOptions = password ? { password } : {};
+    const buffer = await wb.outputAsync(outOptions);
 
     const safeFileName = clientNameDisplay.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}_ledger.xlsx"`);
@@ -115,10 +128,10 @@ async function getClientExcel(req, res) {
   }
 }
 
-// GET /api/reports/ledger-pdf?client_name=...&client_phone=...
+// GET /api/reports/ledger-pdf?client_name=...&client_phone=...&password=...
 async function getClientLedgerPdf(req, res) {
   try {
-    const { client_name, client_phone } = req.query;
+    const { client_name, client_phone, password } = req.query;
     if (!client_name) {
       return res.status(400).json({ message: 'client_name is required.' });
     }
@@ -165,7 +178,11 @@ async function getClientLedgerPdf(req, res) {
       return r.is_green ? sum + amt : sum - amt;
     }, 0);
 
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const pdfOptions = { margin: 40, size: 'A4' };
+    if (password) {
+      pdfOptions.userPassword = password;
+    }
+    const doc = new PDFDocument(pdfOptions);
 
     const safeFileName = clientNameDisplay.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '_');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}_ledger.pdf"`);
