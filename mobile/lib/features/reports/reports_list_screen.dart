@@ -695,29 +695,46 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                         // Compute total outstanding and started date
                         final double totalAmount = reports.fold(0.0, (sum, r) => r.isGreen ? sum + r.amount : sum - r.amount);
                         String startedDate = '—';
+                        String lastReportDate = '—';
                         ReportItem? firstReport;
                         if (reports.isNotEmpty) {
-                          final dates = reports.map((r) => DateTime.tryParse(r.reportDate) ?? DateTime(9999)).toList();
-                          dates.sort();
-                          startedDate = DateFormat('d MMM yyyy').format(dates.first);
-
-                          // Find first report chronologically
-                          final sortedReports = List<ReportItem>.from(reports);
-                          sortedReports.sort((a, b) {
+                          // Find first report chronologically (oldest)
+                          final sortedReportsAsc = List<ReportItem>.from(reports);
+                          sortedReportsAsc.sort((a, b) {
                             final dateA = DateTime.tryParse(a.reportDate) ?? DateTime(9999);
                             final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(9999);
                             final dateComp = dateA.compareTo(dateB);
                             if (dateComp != 0) return dateComp;
-                            // Since reports is oldest first, the older report has a lower index in the original list.
                             return reports.indexOf(a).compareTo(reports.indexOf(b));
                           });
-                          firstReport = sortedReports.first;
+                          firstReport = sortedReportsAsc.first;
+                          startedDate = formatDate(firstReport.reportDate);
+
+                          // Find last report chronologically (newest)
+                          final sortedReportsDesc = List<ReportItem>.from(reports);
+                          sortedReportsDesc.sort((a, b) {
+                            final dateA = DateTime.tryParse(a.reportDate) ?? DateTime(1970);
+                            final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(1970);
+                            final dateComp = dateB.compareTo(dateA); // Descending (newest first)
+                            if (dateComp != 0) return dateComp;
+                            return reports.indexOf(b).compareTo(reports.indexOf(a));
+                          });
+                          lastReportDate = formatDate(sortedReportsDesc.first.reportDate);
                         }
 
-                        // Compute cumulative outstanding sums
+                        // Compute cumulative outstanding sums based on ALL reports sorted chronologically (oldest first)
+                        final sortedAllReports = List<ReportItem>.from(reports);
+                        sortedAllReports.sort((a, b) {
+                          final dateA = DateTime.tryParse(a.reportDate) ?? DateTime(9999);
+                          final dateB = DateTime.tryParse(b.reportDate) ?? DateTime(9999);
+                          final dateComp = dateA.compareTo(dateB);
+                          if (dateComp != 0) return dateComp;
+                          return reports.indexOf(a).compareTo(reports.indexOf(b));
+                        });
+
                         double runningSum = 0.0;
                         final Map<String, double> runningSumsMap = {};
-                        for (final r in filteredReports) {
+                        for (final r in sortedAllReports) {
                           runningSum = r.isGreen ? runningSum + r.amount : runningSum - r.amount;
                           runningSumsMap[r.id] = runningSum;
                         }
@@ -942,7 +959,7 @@ class _ReportsListScreenState extends ConsumerState<ReportsListScreen> {
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
-                                            reports.isNotEmpty ? formatDate(reports.last.reportDate) : '—',
+                                            lastReportDate,
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 14,
